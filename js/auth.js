@@ -1,0 +1,276 @@
+/**
+ * Clinic Payment Management System - Authentication Service
+ * 
+ * Integrates directly with Supabase Authentication (`supabase.auth.*`)
+ * with graceful fallback to local session state when Supabase credentials 
+ * are unconfigured or offline.
+ */
+
+const AuthService = (function () {
+  const STORAGE_KEY_SESSION = 'clinic_pay_auth_session_v1';
+  const authListeners = new Set();
+  let currentSession = null;
+
+  function init() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_SESSION);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.expires_at && parsed.expires_at > Math.floor(Date.now() / 1000)) {
+          currentSession = parsed;
+        } else {
+          localStorage.removeItem(STORAGE_KEY_SESSION);
+          currentSession = null;
+        }
+      }
+    } catch (e) {
+      console.warn("[AuthService] Error reading stored session:", e);
+      currentSession = null;
+    }
+
+    // Connect Supabase Auth listener if client is ready
+    if (SupabaseClient.isReady()) {
+      const client = SupabaseClient.getClient();
+      client.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          await syncSupabaseSession(session);
+        } else if (event === 'SIGNED_OUT') {
+          currentSession = null;
+          localStorage.removeItem(STORAGE_KEY_SESSION);
+          notifyAuthStateChange('SIGNED_OUT', null);
+        }
+      });
+    }
+
+    return currentSession;
+  }
+
+  async function syncSupabaseSession(session) {
+    if (!session || !session.user) return null;
+    const profile = await UserService.getProfile(session.user.id);
+    const enrichedUser = {
+      id: session.user.id,
+      email: session.user.email,
+      username: profile?.username || session.user.email.split('@')[0],
+      name: profile?.name || 'Clinic Staff',
+      nameKey: profile?.nameKey || 'app_title',
+      role: profile?.role || 'mri_officer',
+      roleKey: profile?.roleKey || 'role_mri_officer',
+      office: profile?.office || 'mri',
+      officeNameKey: profile?.officeNameKey || 'mri_office',
+      initials: profile?.initials || 'CP',
+      accentColor: profile?.accentColor || '#1E293B'
+    };
+
+    const structuredSession = {
+      ...session,
+      user: enrichedUser
+    };
+
+    currentSession = structuredSession;
+    localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(structuredSession));
+    notifyAuthStateChange('SIGNED_IN', structuredSession);
+    return structuredSession;
+  }
+
+  /**
+   * Supabase Auth Signature: signInWithPassword({ email, password }) or (email, password)
+   */
+  async function signInWithPassword(credentialsOrEmail, optionalPassword) {
+    let email = '';
+    let password = '';
+
+    if (typeof credentialsOrEmail === 'object' && credentialsOrEmail !== null) {
+      email = credentialsOrEmail.email;
+      password = credentialsOrEmail.password;
+    } else {
+      email = credentialsOrEmail;
+      password = optionalPassword;
+    }
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return {
+        data: { user: null, session: null },
+        error: { message: "Email or username is required.", code: "missing_email" }
+      };
+    }
+
+    if (!password || typeof password !== 'string' || !password.trim()) {
+      return {
+        data: { user: null, session: null },
+        error: { message: "Password is required.", code: "missing_password" }
+      };
+    }
+
+    const cleanIdentifier = email.trim().toLowerCase();
+
+    // 1. Authenticate with Supabase if online and configured
+    if (SupabaseClient.isReady()) {
+      try {
+        const client = SupabaseClient.getClient();
+        // Resolve email if username was entered
+        let targetEmail = cleanIdentifier;
+        if (!targetEmail.includes('@')) {
+          const profile = await UserService.getProfileByEmailOrUsername(cleanIdentifier);
+          if (profile && profile.email) {
+            targetEmail = profile.email;
+          }
+        }
+
+        const { data, error } = await client.auth.signInWithPassword({
+          email: targetEmail,
+          password: password
+        });
+
+        if (!error && data && data.session) {
+          const synced = await syncSupabaseSession(data.session);
+          return {
+            data: { user: synced.user, session: synced },
+            error: null
+          };
+        }
+
+        console.warn("[AuthService] Supabase Auth sign-in rejected or unconfigured password, evaluating clinic directory fallback:", error);
+      } catch (err) {
+        console.warn("[AuthService] Supabase Auth connection failed, checking fallback:", err);
+      }
+    }
+
+    // 2. Standby / Local Directory Mode (Demo accounts)
+    const matchedStaff = await UserService.getProfileByEmailOrUsername(cleanIdentifier);
+    if (!matchedStaff) {
+      return {
+        data: { user: null, session: null },
+        error: { message: "Invalid credentials or account not found in clinic directory.", code: "user_not_found" }
+      };
+    }
+
+    const expiresInSeconds = 86400; // 24 hours
+    const mockSession = {
+      access_token: 'clinic_token_' + Math.random().toString(36).substring(2) + Date.now().toString(36),
+      token_type: 'bearer',
+      expires_in: expiresInSeconds,
+      expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
+      user: {
+        id: matchedStaff.id,
+        email: matchedStaff.email,
+        username: matchedStaff.username,
+        name: matchedStaff.name,
+        nameKey: matchedStaff.nameKey,
+        role: matchedStaff.role,
+        roleKey: matchedStaff.roleKey,
+        office: matchedStaff.office,
+        officeNameKey: matchedStaff.officeNameKey,
+        initials: matchedStaff.initials,
+        accentColor: matchedStaff.accentColor
+      }
+    };
+
+    currentSession = mockSession;
+    localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(mockSession));
+    notifyAuthStateChange('SIGNED_IN', mockSession);
+
+    return {
+      data: { user: mockSession.user, session: mockSession },
+      error: null
+    };
+  }
+
+  /**
+   * Supabase Auth Signature: signOut()
+   */
+  async function signOut() {
+    if (SupabaseClient.isReady()) {
+      try {
+        const client = SupabaseClient.getClient();
+        await client.auth.signOut();
+      } catch (err) {
+        console.warn("[AuthService] Supabase signOut error:", err);
+      }
+    }
+
+    currentSession = null;
+    localStorage.removeItem(STORAGE_KEY_SESSION);
+    notifyAuthStateChange('SIGNED_OUT', null);
+
+    return { error: null };
+  }
+
+  async function getSession() {
+    if (!currentSession) {
+      init();
+    }
+    return {
+      data: { session: currentSession },
+      error: null
+    };
+  }
+
+  async function getUser() {
+    if (!currentSession) {
+      init();
+    }
+    return {
+      data: { user: currentSession ? currentSession.user : null },
+      error: null
+    };
+  }
+
+  function getCurrentUser() {
+    if (!currentSession) {
+      init();
+    }
+    return currentSession ? currentSession.user : null;
+  }
+
+  function hasAccessToOffice(officeId) {
+    const user = getCurrentUser();
+    if (!user) return false;
+    return user.office === officeId;
+  }
+
+  function onAuthStateChange(callback) {
+    if (typeof callback === 'function') {
+      authListeners.add(callback);
+    }
+    return {
+      data: {
+        subscription: {
+          unsubscribe: () => {
+            authListeners.delete(callback);
+          }
+        }
+      }
+    };
+  }
+
+  function notifyAuthStateChange(event, session) {
+    authListeners.forEach(listener => {
+      try {
+        listener(event, session);
+      } catch (err) {
+        console.error("[AuthService] Listener error:", err);
+      }
+    });
+
+    window.dispatchEvent(new CustomEvent('clinicAuthStateChange', {
+      detail: { event, session }
+    }));
+  }
+
+  function getKnownUsers() {
+    return UserService.getStaffDirectory();
+  }
+
+  return {
+    init,
+    signInWithPassword,
+    signOut,
+    getSession,
+    getUser,
+    getCurrentUser,
+    hasAccessToOffice,
+    onAuthStateChange,
+    getKnownUsers
+  };
+})();

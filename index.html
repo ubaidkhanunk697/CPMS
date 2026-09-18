@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="description" content="Professional Clinic Payment & Financial Administration System">
+  <meta name="theme-color" content="#0B1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ClinicPay">
+
+  <title>Clinic Payment Management System</title>
+
+  <!-- PWA Manifest & App Icons -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/clinic-logo.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/icon-192.svg">
+
+  <!-- Core Stylesheets -->
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/responsive.css">
+</head>
+<body>
+
+  <!-- Offline Connectivity Banner -->
+  <div id="offline-banner" class="offline-banner" role="alert">
+    <span data-i18n="status_offline">You are currently offline. Local cache is active.</span>
+  </div>
+
+  <!-- ==========================================================================
+       Authentication Screen (Supabase Ready Abstraction)
+       ========================================================================== -->
+  <div id="auth-view" class="auth-view" style="display: none;">
+    <div class="auth-card">
+      <!-- Header with Logo and Language Selector -->
+      <div class="auth-header">
+        <div class="auth-brand-wrap">
+          <div class="auth-logo-box">
+            <img src="./assets/icons/clinic-logo.svg" alt="Clinic Logo" width="30" height="30">
+          </div>
+          <div class="auth-title-box">
+            <h1 data-i18n="login_title">Clinic Staff Portal</h1>
+            <p data-i18n="login_subtitle">Sign in to access your designated clinic office</p>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <button type="button" id="btn-auth-supabase-status" class="supabase-status-pill compact" title="Supabase Database Settings">
+            <span class="status-dot"></span>
+            <span class="sb-short-text">Supabase</span>
+          </button>
+          <div class="auth-lang-selector" role="group" aria-label="Language Selector">
+            <button class="auth-lang-btn lang-btn active" data-lang="en" aria-pressed="true">EN</button>
+            <button class="auth-lang-btn lang-btn" data-lang="ur" aria-pressed="false">اردو</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auth Error Notification Banner -->
+      <div id="auth-error-banner" class="auth-error-banner" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span id="auth-error-text" data-i18n="auth_error_invalid">Invalid credentials or account not found.</span>
+      </div>
+
+      <!-- Login Credentials Form -->
+      <form id="login-form" class="auth-form" novalidate onsubmit="return false;">
+        <!-- Identity Field (Email or Username) -->
+        <div class="auth-field-group">
+          <label for="login-identity" class="auth-label" data-i18n="login_field_identity">Email or Username</label>
+          <div class="auth-input-wrapper">
+            <span class="auth-input-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </span>
+            <input 
+              type="text" 
+              id="login-identity" 
+              name="identity" 
+              class="auth-input" 
+              placeholder="e.g. aqeb@clinic.local or doctor" 
+              data-i18n-placeholder="login_placeholder_identity"
+              autocomplete="username" 
+              required>
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="auth-field-group">
+          <label for="login-password" class="auth-label" data-i18n="login_field_password">Password</label>
+          <div class="auth-input-wrapper">
+            <span class="auth-input-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </span>
+            <input 
+              type="password" 
+              id="login-password" 
+              name="password" 
+              class="auth-input" 
+              placeholder="Enter your password" 
+              data-i18n-placeholder="login_placeholder_password"
+              autocomplete="current-password" 
+              required>
+            <button type="button" id="btn-toggle-pwd" class="auth-pwd-toggle" aria-label="Toggle password visibility">
+              <svg id="pwd-icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg id="pwd-icon-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="btn-login-submit" class="btn-auth-submit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          <span id="btn-login-text" data-i18n="login_btn_submit">Sign In</span>
+        </button>
+      </form>
+
+      <!-- Supabase Architecture Notice Banner -->
+      <div class="auth-notice-banner">
+        <svg class="auth-notice-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <div class="auth-notice-content">
+          <strong class="auth-notice-title" data-i18n="auth_notice_title">Supabase Ready Authentication Layer</strong>
+          <p class="auth-notice-desc" data-i18n="auth_notice_desc">This authentication interface is built with standard Supabase Auth signatures. Role-based access control is actively enforced.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Application Wrapper -->
+  <div id="app-root">
+
+    <!-- Mobile Drawer Overlay Backdrop -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
+    <!-- Application Sidebar -->
+    <aside id="app-sidebar" class="app-sidebar" aria-label="Main Navigation">
+      <!-- Sidebar Header & Brand Logo -->
+      <div class="sidebar-header">
+        <div class="brand-logo-wrap">
+          <img src="./assets/icons/clinic-logo.svg" alt="Clinic Logo" width="36" height="36">
+        </div>
+        <div class="brand-text">
+          <span class="brand-title" data-i18n="app_title">Clinic Payment</span>
+          <span class="brand-subtitle" data-i18n="clinic_name">Khattak Medical</span>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <div class="sidebar-content">
+        <div class="nav-group-title" data-i18n="nav_offices">Clinic Offices</div>
+        <ul class="nav-list">
+          <!-- 1. MRI Office -->
+          <li>
+            <a href="#mri" class="nav-link active" data-office="mri">
+              <svg class="nav-icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+              </svg>
+              <span class="nav-label" data-i18n="mri_office">MRI Office</span>
+            </a>
+          </li>
+
+          <!-- 2. Investigation Office -->
+          <li>
+            <a href="#investigation" class="nav-link" data-office="investigation">
+              <svg class="nav-icon" viewBox="0 0 24 24">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <path d="M8 13h2M8 17h2M14 13h2"/>
+              </svg>
+              <span class="nav-label" data-i18n="investigation_office">Investigation Office</span>
+            </a>
+          </li>
+
+          <!-- 3. Operation / Assistant Office -->
+          <li>
+            <a href="#operation" class="nav-link" data-office="operation">
+              <svg class="nav-icon" viewBox="0 0 24 24">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
+              <span class="nav-label" data-i18n="operation_office">Operation / Assistant</span>
+            </a>
+          </li>
+
+          <!-- 4. Doctor Office -->
+          <li>
+            <a href="#doctor" class="nav-link" data-office="doctor">
+              <svg class="nav-icon" viewBox="0 0 24 24">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+              </svg>
+              <span class="nav-label" data-i18n="doctor_office">Doctor Office</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Active Officer Info Card in Footer -->
+      <div class="sidebar-footer">
+        <div class="officer-card">
+          <div id="sidebar-officer-avatar" class="officer-avatar">AK</div>
+          <div class="officer-info">
+            <span id="sidebar-officer-name" class="officer-name" data-i18n="officer_aqeb">Aqeb Khan</span>
+            <span id="sidebar-officer-role" class="officer-role" data-i18n="role_mri_officer">MRI Incharge</span>
+          </div>
+        </div>
+        <button type="button" id="btn-sidebar-logout" class="btn-sidebar-logout" title="Sign Out">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span data-i18n="btn_logout">Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <div class="app-main">
+      <!-- Sticky Top Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <!-- Mobile Hamburger Toggle -->
+          <button id="menu-toggle" class="menu-toggle-btn" aria-label="Toggle navigation menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+
+          <!-- Current Office Context -->
+          <div class="header-office-context">
+            <h1 id="header-active-office-title" class="header-office-title" data-i18n="mri_office">MRI Office</h1>
+            <div class="header-officer-assigned">
+              <span class="officer-dot"></span>
+              <span data-i18n="assigned_officer">Assigned Officer</span>: 
+              <strong id="header-active-officer-name" data-i18n="officer_aqeb">Aqeb Khan</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Header Actions: Language Switcher, PWA Install & CTA -->
+        <div class="header-actions">
+          <!-- Language Selector -->
+          <div class="lang-selector-wrap" role="group" aria-label="Language Selector">
+            <button class="lang-btn active" data-lang="en" aria-pressed="true">EN</button>
+            <button class="lang-btn" data-lang="ur" aria-pressed="false">اردو</button>
+          </div>
+
+          <!-- PWA Install Button (Shown if installable) -->
+          <button id="btn-install-pwa" class="btn-secondary" style="display: none;" title="Install Application">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          <!-- Supabase Connection Status Pill & Settings Trigger -->
+          <button type="button" id="btn-supabase-status" class="supabase-status-pill" title="Supabase Database Status & Configuration">
+            <span class="status-dot"></span>
+            <span id="supabase-status-text" data-i18n="supabase_status_unconfigured">Supabase Standby (Local Mode)</span>
+          </button>
+
+          <!-- Record Payment CTA -->
+          <button id="btn-open-payment-modal" class="btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span class="btn-text" data-i18n="btn_record_payment">Record Payment</span>
+          </button>
+
+          <!-- Header Sign Out Button -->
+          <button type="button" id="btn-header-logout" class="btn-secondary btn-header-logout" title="Sign Out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span class="btn-text" data-i18n="btn_logout">Sign Out</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Dashboard Content Container -->
+      <main class="app-content">
+
+        <!-- 1. Dedicated MRI Payment Entry Form (Officer: Aqeb Khan) -->
+        <section id="mri-entry-card" class="mri-entry-card" aria-label="MRI Payment Entry">
+          <div class="mri-form-header">
+            <div class="mri-form-header-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+              </svg>
+              <span data-i18n="mri_payment_entry">MRI Payment Entry</span>
+            </div>
+            <div class="mri-rule-badge" data-i18n="mri_calc_rule_hint">
+              Fixed Rule: Payment ≥ Rs. 3,000 → Office: Rs. 3,000 | Doctor: Balance
+            </div>
+          </div>
+
+          <form id="mri-entry-form" class="mri-form-body" novalidate>
+            <div class="mri-form-grid">
+              <!-- 1. Patient Name -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="mri_patient_name">Patient Name</label>
+                <input 
+                  type="text" 
+                  id="mri-patient-name" 
+                  name="patientName" 
+                  class="form-control" 
+                  placeholder="e.g. Name" 
+                  required
+                >
+              </div>
+
+              <!-- 2. MRI Type -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="mri_type">MRI Type</label>
+                <input 
+                  type="text" 
+                  list="mri-types-list" 
+                  id="mri-type-input" 
+                  name="mriType" 
+                  class="form-control" 
+                  placeholder="Select or enter MRI type..." 
+                  data-i18n-placeholder="mri_type_placeholder"
+                  required
+                >
+                <datalist id="mri-types-list">
+                  <option value="Brain MRI with Contrast">
+                  <option value="Brain MRI (Plain)">
+                  <option value="Lumbar Spine MRI">
+                  <option value="Cervical Spine MRI">
+                  <option value="Knee Joint MRI">
+                  <option value="Shoulder Joint MRI">
+                  <option value="Abdomen & Pelvis MRI">
+                  <option value="MRCP (Biliary / Pancreas)">
+                  <option value="Whole Spine Screening">
+                  <option value="Thoracic Spine MRI">
+                  <option value="Limited Scan / Follow-up">
+                </datalist>
+              </div>
+
+              <!-- 3. Payment Received -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="mri_payment_received">Payment Received</label>
+                <input 
+                  type="number" 
+                  id="mri-payment-input" 
+                  name="payment" 
+                  class="form-control" 
+                  placeholder="e.g. 5000" 
+                  min="1" 
+                  step="50" 
+                  required
+                >
+              </div>
+
+              <!-- 4. Date -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="mri_date">Date</label>
+                <input 
+                  type="date" 
+                  id="mri-date-input" 
+                  name="date" 
+                  class="form-control" 
+                  required
+                >
+              </div>
+
+              <!-- 5. Day (Auto-calculated from Date) -->
+              <div class="form-group">
+                <label class="form-label" data-i18n="mri_day">Day</label>
+                <input 
+                  type="text" 
+                  id="mri-day-input" 
+                  name="day" 
+                  class="form-control day-readonly-badge" 
+                  readonly 
+                  tabindex="-1"
+                >
+              </div>
+            </div>
+
+            <!-- Real-time Live Calculation Preview Bar -->
+            <div class="mri-live-calc-bar">
+              <div class="mri-live-calc-items">
+                <div class="calc-pill-item">
+                  <span data-i18n="mri_payment_received">Payment Received:</span>
+                  <strong id="mri-live-payment" class="calc-pill-val val-payment">Rs. 0</strong>
+                </div>
+                <div class="calc-pill-item">
+                  <span data-i18n="mri_office_share_fixed">MRI Office Share:</span>
+                  <strong id="mri-live-office" class="calc-pill-val val-office">Rs. 0</strong>
+                </div>
+                <div class="calc-pill-item">
+                  <span data-i18n="doctor_amount_cut">Doctor Amount:</span>
+                  <strong id="mri-live-doctor" class="calc-pill-val val-doctor">Rs. 0</strong>
+                </div>
+              </div>
+
+              <button type="submit" id="btn-submit-mri-entry" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span data-i18n="btn_add_mri_entry">Record MRI Payment</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Dedicated Investigation Office Payment Entry Form (Officer: Shezaad) -->
+        <section id="investigation-entry-card" class="inv-entry-card" aria-label="Investigation Payment Entry" style="display: none;">
+          <div class="inv-form-header">
+            <div class="inv-form-header-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 2v7.31M14 2v7.31M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0"/>
+                <path d="M5.52 16h12.96"/>
+              </svg>
+              <span data-i18n="inv_payment_entry">Investigation Payment Entry</span>
+            </div>
+            <div class="inv-rule-badge" data-i18n="inv_calc_rule_hint">
+              Payment Rule: 100% Doctor Amount (No Deduction)
+            </div>
+          </div>
+
+          <form id="investigation-entry-form" class="inv-form-body" novalidate>
+            <div class="inv-form-grid">
+              <!-- 1. Patient Name -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="inv_patient_name">Patient Name</label>
+                <input 
+                  type="text" 
+                  id="inv-patient-name" 
+                  name="patientName" 
+                  class="form-control" 
+                  placeholder="e.g. Zahid Ali" 
+                  required
+                >
+              </div>
+
+              <!-- 2. Test Name -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="inv_test_name">Test Name</label>
+                <input 
+                  type="text" 
+                  list="inv-tests-list" 
+                  id="inv-test-name" 
+                  name="testName" 
+                  class="form-control" 
+                  placeholder="Select or enter test name..." 
+                  data-i18n-placeholder="inv_test_placeholder"
+                  required
+                >
+                <datalist id="inv-tests-list">
+                  <option value="Complete Blood Count (CBC) & ESR">
+                  <option value="Liver Function Test (LFT) Comprehensive">
+                  <option value="Renal Function Test (RFT) + Serum Electrolytes">
+                  <option value="Lipid Profile Complete">
+                  <option value="Blood Sugar Fasting (BSF) / Random (BSR)">
+                  <option value="Hepatitis B & C PCR Quantitative">
+                  <option value="Thyroid Profile (T3, T4, TSH)">
+                  <option value="Urine Routine Examination & Microscopy">
+                  <option value="HbA1c Glycated Hemoglobin">
+                  <option value="Stool Routine Examination">
+                  <option value="Serum Uric Acid & Calcium">
+                  <option value="Dengue NS1 Antigen & Serology">
+                </datalist>
+              </div>
+
+              <!-- 3. Payment Received -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="inv_payment_received">Payment Received</label>
+                <input 
+                  type="number" 
+                  id="inv-payment-input" 
+                  name="payment" 
+                  class="form-control" 
+                  placeholder="e.g. 5000" 
+                  min="1" 
+                  step="50" 
+                  required
+                >
+              </div>
+
+              <!-- 4. Date -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="inv_date">Date</label>
+                <input 
+                  type="date" 
+                  id="inv-date-input" 
+                  name="date" 
+                  class="form-control" 
+                  required
+                >
+              </div>
+
+              <!-- 5. Day (Auto-calculated from Date) -->
+              <div class="form-group">
+                <label class="form-label" data-i18n="inv_day">Day</label>
+                <input 
+                  type="text" 
+                  id="inv-day-input" 
+                  name="day" 
+                  class="form-control day-readonly-badge" 
+                  readonly 
+                  tabindex="-1"
+                >
+              </div>
+            </div>
+
+            <!-- Real-time Live Calculation Preview Bar -->
+            <div class="inv-live-calc-bar">
+              <div class="inv-live-calc-items">
+                <div class="calc-pill-item">
+                  <span data-i18n="inv_payment_received">Payment Received:</span>
+                  <strong id="inv-live-payment" class="calc-pill-val val-payment">Rs. 0</strong>
+                </div>
+                <div class="calc-pill-item">
+                  <span data-i18n="inv_total_received">Investigation Total:</span>
+                  <strong id="inv-live-total" class="calc-pill-val val-office">Rs. 0</strong>
+                </div>
+                <div class="calc-pill-item">
+                  <span data-i18n="doctor_amount_cut">Doctor Amount:</span>
+                  <strong id="inv-live-doctor" class="calc-pill-val val-doctor">Rs. 0</strong>
+                </div>
+              </div>
+
+              <button type="submit" id="btn-submit-inv-entry" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span data-i18n="btn_add_inv_entry">Record Investigation Payment</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Dedicated Operation/Assistant Office Payment Entry Form (Officer: Qari Mustajab) -->
+        <section id="operation-entry-card" class="op-entry-card" aria-label="Operation Payment Entry" style="display: none;">
+          <div class="op-form-header">
+            <div class="op-form-header-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="6" cy="6" r="3"/>
+                <circle cx="6" cy="18" r="3"/>
+                <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+                <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+                <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+              </svg>
+              <span data-i18n="op_payment_entry">Operation Payment Entry</span>
+            </div>
+            <div class="op-rule-badge" data-i18n="op_calc_rule_hint">
+              Payment Rule: 100% Doctor Amount (No Deduction)
+            </div>
+          </div>
+
+          <form id="operation-entry-form" class="op-form-body" novalidate>
+            <div class="op-form-grid">
+              <!-- 1. Patient Name -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="op_patient_name">Patient Name</label>
+                <input 
+                  type="text" 
+                  id="op-patient-name" 
+                  name="patientName" 
+                  class="form-control" 
+                  placeholder="e.g. Zahid Ali" 
+                  required
+                >
+              </div>
+
+              <!-- 2. Operation Name -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="op_operation_name">Operation Name</label>
+                <input 
+                  type="text" 
+                  list="op-operations-list" 
+                  id="op-operation-name" 
+                  name="operationName" 
+                  class="form-control" 
+                  placeholder="Select or enter operation..." 
+                  data-i18n-placeholder="op_operation_placeholder"
+                  required
+                >
+                <datalist id="op-operations-list">
+                  <option value="Laparoscopic Cholecystectomy">
+                  <option value="Inguinal Hernioplasty (Mesh Repair)">
+                  <option value="Open Appendectomy">
+                  <option value="Orthopedic Knee Arthroscopy">
+                  <option value="Cesarean Section (C-Section)">
+                  <option value="Total Abdominal Hysterectomy (TAH)">
+                  <option value="Transurethral Resection of Prostate (TURP)">
+                  <option value="Thyroidectomy (Subtotal / Total)">
+                  <option value="Cataract Phacoemulsification with IOL">
+                  <option value="Tympanoplasty / Mastoidectomy">
+                  <option value="Fistulotomy / Fissurectomy">
+                  <option value="Lipoma / Sebaceous Cyst Excision">
+                </datalist>
+              </div>
+
+              <!-- 3. Payment Received -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="op_payment_received">Payment Received</label>
+                <input 
+                  type="number" 
+                  id="op-payment-input" 
+                  name="payment" 
+                  class="form-control" 
+                  placeholder="e.g. 50000" 
+                  min="1" 
+                  step="100" 
+                  required
+                >
+              </div>
+
+              <!-- 4. Date -->
+              <div class="form-group">
+                <label class="form-label required" data-i18n="op_date">Date</label>
+                <input 
+                  type="date" 
+                  id="op-date-input" 
+                  name="date" 
+                  class="form-control" 
+                  required
+                >
+              </div>
+
+              <!-- 5. Day (Auto-calculated from Date) -->
+              <div class="form-group">
+                <label class="form-label" data-i18n="op_day">Day</label>
+                <input 
+                  type="text" 
+                  id="op-day-input" 
+                  name="day" 
+                  class="form-control day-readonly-badge" 
+                  readonly 
+                  tabindex="-1"
+                >
+              </div>
+            </div>
+
+            <!-- Real-time Live Calculation Preview Bar -->
+            <div class="op-live-calc-bar">
+              <div class="op-live-calc-items">
+                <div class="calc-pill-item">
+                  <span data-i18n="op_payment_received">Payment Received:</span>
+                  <strong id="op-live-payment" class="calc-pill-val val-payment">Rs. 0</strong>
+                </div>
+                <div class="calc-pill-item">
+                  <span data-i18n="op_total_received">Operation Total:</span>
+                  <strong id="op-live-total" class="calc-pill-val val-office">Rs. 0</strong>
+                </div>
+                <div class="calc-pill-item">
+                  <span data-i18n="doctor_amount_cut">Doctor Amount:</span>
+                  <strong id="op-live-doctor" class="calc-pill-val val-doctor">Rs. 0</strong>
+                </div>
+              </div>
+
+              <button type="submit" id="btn-submit-op-entry" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span data-i18n="btn_add_op_entry">Record Operation Payment</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Dedicated Doctor Executive Dashboard (Doctor: Dr. Nawaz Khattak) -->
+        <div id="doctor-dashboard-container" style="display: none;">
+          <!-- 1. Executive Grand Total Section -->
+          <section class="doctor-executive-banner" aria-label="Doctor Grand Total Banner">
+            <div class="doctor-banner-header">
+              <div class="doctor-banner-info">
+                <div class="doctor-badge-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                  <span data-i18n="doctor_dashboard_title">Doctor Executive Dashboard</span>
+                </div>
+                <h2 class="doctor-lead-title" data-i18n="doctor_name_title">Dr. Nawaz Khattak</h2>
+              </div>
+              <div class="doctor-banner-meta">
+                <div class="doctor-meta-stat">
+                  <span class="stat-label" data-i18n="doctor_total_clinic_revenue">Total Clinic Collection</span>
+                  <span id="doc-gross-collection" class="stat-val">₨ 0</span>
+                </div>
+                <div class="doctor-meta-stat">
+                  <span class="stat-label" data-i18n="doctor_total_clinic_entries">Total Clinic Entries</span>
+                  <span id="doc-gross-entries" class="stat-val">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grand Total Primary Metric -->
+            <div class="doctor-grand-display">
+              <span class="doctor-grand-label" data-i18n="doctor_grand_total">Doctor Grand Total</span>
+              <div id="doc-grand-total-val" class="doctor-grand-val">₨ 0</div>
+              <span class="doctor-grand-sub" data-i18n="doctor_grand_total_desc">Net doctor earnings aggregated across MRI, Investigation, and Assistant offices</span>
+            </div>
+
+            <!-- Formula Equation Breakdown Bar -->
+            <div class="doctor-formula-container" aria-label="Grand Total Calculation Breakdown">
+              <div class="formula-part">
+                <span class="formula-label" data-i18n="doctor_formula_mri">MRI Share:</span>
+                <span id="doc-formula-mri" class="formula-val mri">₨ 0</span>
+              </div>
+              <span class="formula-op">+</span>
+              <div class="formula-part">
+                <span class="formula-label" data-i18n="doctor_formula_inv">Investigation Share:</span>
+                <span id="doc-formula-inv" class="formula-val inv">₨ 0</span>
+              </div>
+              <span class="formula-op">+</span>
+              <div class="formula-part">
+                <span class="formula-label" data-i18n="doctor_formula_asst">Assistant Share:</span>
+                <span id="doc-formula-asst" class="formula-val op">₨ 0</span>
+              </div>
+              <span class="formula-op">=</span>
+              <div class="formula-part">
+                <span class="formula-label" data-i18n="doctor_formula_equals">Grand Total:</span>
+                <span id="doc-formula-grand" class="formula-val grand">₨ 0</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- 2. Controls Bar: Date Filter (Strictly 3 Options) & 3 Main Department Tabs -->
+          <div class="doctor-controls-bar">
+            <!-- 3 Main Tabs: MRI, Investigation, Assistant -->
+            <div class="doctor-tabs-nav" role="tablist" aria-label="Doctor Department Tabs">
+              <button type="button" class="doctor-tab-btn active" data-tab="mri" role="tab" aria-selected="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                <span data-i18n="doctor_tab_mri">MRI</span>
+                <span id="doc-tab-badge-mri" class="doctor-tab-badge">0</span>
+              </button>
+
+              <button type="button" class="doctor-tab-btn" data-tab="investigation" role="tab" aria-selected="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10 2v7.31L4.69 18.5a2 2 0 0 0 1.62 3.5h15.38a2 2 0 0 0 1.62-3.5L18 9.31V2"/>
+                  <line x1="8" y1="2" x2="16" y2="2"/>
+                  <line x1="6.87" y1="15" x2="17.13" y2="15"/>
+                </svg>
+                <span data-i18n="doctor_tab_investigation">Investigation</span>
+                <span id="doc-tab-badge-inv" class="doctor-tab-badge">0</span>
+              </button>
+
+              <button type="button" class="doctor-tab-btn" data-tab="assistant" role="tab" aria-selected="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="6" cy="6" r="3"/>
+                  <circle cx="6" cy="18" r="3"/>
+                  <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+                  <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+                  <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+                </svg>
+                <span data-i18n="doctor_tab_assistant">Assistant</span>
+                <span id="doc-tab-badge-asst" class="doctor-tab-badge">0</span>
+              </button>
+            </div>
+
+            <!-- Strictly 3 Date Filter Options: Today, Yesterday, This Week -->
+            <div class="doctor-date-filters" role="group" aria-label="Date Range Filters">
+              <button type="button" class="doctor-date-btn active" data-range="today">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span data-i18n="filter_opt_today">Today</span>
+              </button>
+              <button type="button" class="doctor-date-btn" data-range="yesterday">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="1 4 1 10 7 10"/>
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+                <span data-i18n="filter_opt_yesterday">Yesterday</span>
+              </button>
+              <button type="button" class="doctor-date-btn" data-range="week">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span data-i18n="filter_opt_week">This Week</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Active Tab Summary Cards -->
+          <section id="doctor-tab-kpi-container" class="doctor-tab-kpis" aria-label="Active Tab Summary Cards">
+            <!-- Dynamically populated via UI.renderDoctorTabKPIs -->
+          </section>
+
+          <!-- 4. Active Tab Table Panel -->
+          <section class="doctor-table-card" aria-label="Department Payment Records">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 id="doctor-table-title" class="card-title" data-i18n="doc_mri_records_title">MRI Department Records</h2>
+                <p id="doctor-table-subtitle" class="card-description" data-i18n="doctor_grand_total_desc">Detailed entries for the active department</p>
+              </div>
+              <div class="header-action-group">
+                <!-- Clear All Records For Active Tab Button -->
+                <button id="btn-doctor-clear-tab" class="btn-clear-all" title="Clear Tab Records">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <line x1="10" y1="11" x2="10" y2="17"/>
+                    <line x1="14" y1="11" x2="14" y2="17"/>
+                  </svg>
+                  <span data-i18n="btn_clear_tab">Clear Tab Records</span>
+                </button>
+
+                <!-- Export CSV Button -->
+                <button id="btn-doctor-export" class="btn-secondary" title="Export Tab Report">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span data-i18n="btn_export">Export Report</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Table responsive container -->
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead id="doctor-table-head">
+                  <!-- Dynamically rendered per tab -->
+                </thead>
+                <tbody id="doctor-table-tbody">
+                  <!-- Dynamically rendered per tab -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Doctor empty state container -->
+            <div id="doctor-empty-container"></div>
+          </section>
+        </div>
+
+        <!-- 2. KPI Summary Cards Grid -->
+        <section id="kpi-container" class="kpi-grid" aria-label="Financial Summary Cards">
+          <!-- Dynamic KPI Cards injected via UI -->
+        </section>
+
+        <!-- 3. Transactions & Operations Panel -->
+        <section id="table-content-card" class="content-card" aria-label="Office Records">
+          <!-- Card Header & Actions -->
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 id="table-panel-title" class="card-title" data-i18n="mri_payment_history">MRI Payment History</h2>
+              <p class="card-description" data-i18n="app_subtitle">Financial record of fees, doctor shares, and office collections</p>
+            </div>
+            <div class="header-action-group">
+              <!-- Clear All MRI Button -->
+              <button id="btn-clear-all-mri" class="btn-clear-all" title="Clear All MRI Records">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+                <span data-i18n="btn_clear_all">Clear All</span>
+              </button>
+
+              <!-- Clear All Investigation Button -->
+              <button id="btn-clear-all-investigation" class="btn-clear-all" style="display: none;" title="Clear All Investigation Records">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+                <span data-i18n="btn_clear_all">Clear All</span>
+              </button>
+
+              <!-- Clear All Operation Button -->
+              <button id="btn-clear-all-operation" class="btn-clear-all" style="display: none;" title="Clear All Operation Records">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+                <span data-i18n="btn_clear_all">Clear All</span>
+              </button>
+
+              <button id="btn-export-report" class="btn-secondary">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span data-i18n="btn_export">Export Report</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter & Search Bar -->
+          <div class="filter-bar">
+            <div class="search-input-wrap">
+              <svg class="search-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input 
+                type="text" 
+                id="filter-search" 
+                class="search-input" 
+                placeholder="Search by patient name, ID, or phone..."
+                data-i18n-placeholder="filter_search_placeholder"
+              >
+            </div>
+
+            <div class="filter-actions">
+              <!-- Status Filter -->
+              <select id="filter-status" class="filter-select" aria-label="Filter by payment status">
+                <option value="all" data-i18n="filter_all_statuses">All Statuses</option>
+                <option value="paid" data-i18n="filter_status_paid">Paid</option>
+                <option value="partial" data-i18n="filter_status_partial">Partial</option>
+                <option value="pending" data-i18n="filter_status_pending">Pending</option>
+              </select>
+
+              <!-- Date Filter -->
+              <select id="filter-date" class="filter-select" aria-label="Filter by time range">
+                <option value="all" data-i18n="filter_all_time">All Time</option>
+                <option value="today" data-i18n="filter_today">Today</option>
+                <option value="week" data-i18n="filter_this_week">This Week</option>
+                <option value="month" data-i18n="filter_this_month">This Month</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Transactions Data Table -->
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead id="data-table-head">
+                <tr id="table-headers-row">
+                  <th data-i18n="col_patient_name">Patient Name</th>
+                  <th data-i18n="col_mri_type">MRI Type</th>
+                  <th data-i18n="col_payment">Payment</th>
+                  <th data-i18n="col_office_share">MRI Office Share</th>
+                  <th data-i18n="col_doctor_amount">Doctor Amount</th>
+                  <th data-i18n="col_date">Date</th>
+                  <th data-i18n="col_day">Day</th>
+                  <th data-i18n="col_actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="transactions-tbody">
+                <!-- Rows dynamically injected via UI -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State (Container for UI.renderEmptyState) -->
+          <div id="table-empty-container"></div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Record Payment Modal Dialog
+       ========================================================================== -->
+  <div id="payment-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-payment-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-payment-title" class="modal-title" data-i18n="modal_new_payment_title">Record Clinic Payment</h3>
+        <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <form id="payment-form" novalidate>
+        <div class="modal-body">
+          <div class="form-grid">
+            <!-- Office Selection -->
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="form_office_select">Target Office</label>
+              <select name="officeId" id="modal-office-select" class="form-control" required>
+                <option value="mri" data-i18n="mri_office">MRI Office</option>
+                <option value="investigation" data-i18n="investigation_office">Investigation Office</option>
+                <option value="operation" data-i18n="operation_office">Operation / Assistant Office</option>
+                <option value="doctor" data-i18n="doctor_office">Doctor Office</option>
+              </select>
+            </div>
+
+            <!-- Patient Name -->
+            <div class="form-group">
+              <label class="form-label required" data-i18n="form_patient_name">Patient Full Name</label>
+              <input type="text" name="patientName" class="form-control" placeholder="e.g. Zahid Ali" required>
+            </div>
+
+            <!-- Patient Contact -->
+            <div class="form-group">
+              <label class="form-label" data-i18n="form_patient_contact">Contact Number</label>
+              <input type="tel" name="patientContact" class="form-control" placeholder="0300-1234567">
+            </div>
+
+            <!-- Service Description -->
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="form_service_description">Procedure / Scan / Investigation</label>
+              <input type="text" name="service" class="form-control" placeholder="e.g. Brain MRI, Laparoscopy, Lipid Profile" required>
+            </div>
+
+            <!-- Total Fee -->
+            <div class="form-group">
+              <label class="form-label required" data-i18n="form_total_fee">Total Fee (₨)</label>
+              <input type="number" name="totalFee" id="field-total-fee" class="form-control" min="1" step="50" placeholder="15000" required>
+            </div>
+
+            <!-- Doctor Share Percentage -->
+            <div class="form-group">
+              <label class="form-label required" data-i18n="form_doctor_percentage">Doctor Share (%)</label>
+              <input type="number" name="doctorPercent" id="field-doctor-pct" class="form-control" min="0" max="100" value="30" required>
+            </div>
+
+            <!-- Amount Received -->
+            <div class="form-group">
+              <label class="form-label required" data-i18n="form_paid_amount">Amount Received (₨)</label>
+              <input type="number" name="paidAmount" id="field-paid-amount" class="form-control" min="0" step="50" placeholder="15000" required>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="form-group">
+              <label class="form-label" data-i18n="form_payment_method">Payment Method</label>
+              <select name="paymentMethod" class="form-control">
+                <option value="cash" data-i18n="form_method_cash">Cash</option>
+                <option value="bank" data-i18n="form_method_bank">Online / Bank Transfer</option>
+                <option value="card" data-i18n="form_method_card">Debit / Credit Card</option>
+              </select>
+            </div>
+
+            <!-- Remarks -->
+            <div class="form-group full-width">
+              <label class="form-label" data-i18n="form_notes">Additional Remarks</label>
+              <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+            </div>
+          </div>
+
+          <!-- Real-Time Financial Split Breakdown Preview Card -->
+          <div class="calc-breakdown-card">
+            <span style="font-weight: 700; font-size: 0.82rem; color: var(--navy-900);" data-i18n="calc_preview_heading">Payment Calculation Summary</span>
+            <div class="breakdown-row">
+              <span data-i18n="calc_doctor_amount">Calculated Doctor Share:</span>
+              <strong id="calc-preview-doctor" style="color: var(--red-600);">₨ 0</strong>
+            </div>
+            <div class="breakdown-row">
+              <span data-i18n="calc_office_amount">Calculated Office Share:</span>
+              <strong id="calc-preview-office" style="color: var(--success-badge);">₨ 0</strong>
+            </div>
+            <div class="breakdown-row total">
+              <span data-i18n="calc_remaining_due">Remaining Due Balance:</span>
+              <strong id="calc-preview-balance">₨ 0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-close-modal" data-i18n="btn_cancel">Cancel</button>
+          <button type="submit" class="btn-primary" data-i18n="btn_save">Save & Record</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Edit MRI Record Modal Dialog
+       ========================================================================== -->
+  <div id="mri-edit-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-edit-mri-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-edit-mri-title" class="modal-title" data-i18n="modal_edit_mri_title">Edit MRI Payment Record</h3>
+        <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <form id="mri-edit-form" novalidate>
+        <input type="hidden" id="mri-edit-id" name="id">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="mri_patient_name">Patient Name</label>
+              <input type="text" id="mri-edit-patient-name" name="patientName" class="form-control" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="mri_type">MRI Type</label>
+              <input type="text" list="mri-types-list" id="mri-edit-type-input" name="mriType" class="form-control" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="mri_payment_received">Payment Received</label>
+              <input type="number" id="mri-edit-payment-input" name="payment" class="form-control" min="1" step="50" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label required" data-i18n="mri_date">Date</label>
+              <input type="date" id="mri-edit-date-input" name="date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" data-i18n="mri_day">Day</label>
+              <input type="text" id="mri-edit-day-input" name="day" class="form-control day-readonly-badge" readonly tabindex="-1">
+            </div>
+          </div>
+
+          <!-- Edit Real-Time Financial Split Breakdown Preview Card -->
+          <div class="calc-breakdown-card">
+            <span style="font-weight: 700; font-size: 0.82rem; color: var(--navy-900);" data-i18n="calc_preview_heading">Payment Calculation Summary</span>
+            <div class="breakdown-row">
+              <span data-i18n="mri_office_share_fixed">MRI Office Share:</span>
+              <strong id="mri-edit-preview-office" style="color: var(--success-badge);">₨ 0</strong>
+            </div>
+            <div class="breakdown-row">
+              <span data-i18n="doctor_amount_cut">Doctor Amount:</span>
+              <strong id="mri-edit-preview-doctor" style="color: var(--red-600);">₨ 0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-close-modal" data-i18n="btn_cancel">Cancel</button>
+          <button type="submit" class="btn-primary" data-i18n="btn_update_mri_entry">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Edit Investigation Record Modal Dialog
+       ========================================================================== -->
+  <div id="inv-edit-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-edit-inv-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-edit-inv-title" class="modal-title" data-i18n="modal_edit_inv_title">Edit Investigation Payment Record</h3>
+        <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <form id="inv-edit-form" novalidate>
+        <input type="hidden" id="inv-edit-id" name="id">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="inv_patient_name">Patient Name</label>
+              <input type="text" id="inv-edit-patient-name" name="patientName" class="form-control" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="inv_test_name">Test Name</label>
+              <input type="text" list="inv-tests-list" id="inv-edit-test-name" name="testName" class="form-control" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="inv_payment_received">Payment Received</label>
+              <input type="number" id="inv-edit-payment-input" name="payment" class="form-control" min="1" step="50" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label required" data-i18n="inv_date">Date</label>
+              <input type="date" id="inv-edit-date-input" name="date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" data-i18n="inv_day">Day</label>
+              <input type="text" id="inv-edit-day-input" name="day" class="form-control day-readonly-badge" readonly tabindex="-1">
+            </div>
+          </div>
+
+          <!-- Edit Real-Time Financial Split Breakdown Preview Card -->
+          <div class="calc-breakdown-card">
+            <span style="font-weight: 700; font-size: 0.82rem; color: var(--navy-900);" data-i18n="calc_preview_heading">Payment Calculation Summary</span>
+            <div class="breakdown-row">
+              <span data-i18n="inv_total_received">Investigation Total:</span>
+              <strong id="inv-edit-preview-total" style="color: var(--navy-900);">₨ 0</strong>
+            </div>
+            <div class="breakdown-row">
+              <span data-i18n="doctor_amount_cut">Doctor Amount:</span>
+              <strong id="inv-edit-preview-doctor" style="color: var(--red-600);">₨ 0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-close-modal" data-i18n="btn_cancel">Cancel</button>
+          <button type="submit" class="btn-primary" data-i18n="btn_update_inv_entry">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Edit Operation Record Modal Dialog
+       ========================================================================== -->
+  <div id="op-edit-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-edit-op-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-edit-op-title" class="modal-title" data-i18n="modal_edit_op_title">Edit Operation Payment Record</h3>
+        <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <form id="op-edit-form" novalidate>
+        <input type="hidden" id="op-edit-id" name="id">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="op_patient_name">Patient Name</label>
+              <input type="text" id="op-edit-patient-name" name="patientName" class="form-control" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="op_operation_name">Operation Name</label>
+              <input type="text" list="op-operations-list" id="op-edit-operation-name" name="operationName" class="form-control" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label class="form-label required" data-i18n="op_payment_received">Payment Received</label>
+              <input type="number" id="op-edit-payment-input" name="payment" class="form-control" min="1" step="100" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label required" data-i18n="op_date">Date</label>
+              <input type="date" id="op-edit-date-input" name="date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" data-i18n="op_day">Day</label>
+              <input type="text" id="op-edit-day-input" name="day" class="form-control day-readonly-badge" readonly tabindex="-1">
+            </div>
+          </div>
+
+          <!-- Edit Real-Time Financial Split Breakdown Preview Card -->
+          <div class="calc-breakdown-card">
+            <span style="font-weight: 700; font-size: 0.82rem; color: var(--navy-900);" data-i18n="calc_preview_heading">Payment Calculation Summary</span>
+            <div class="breakdown-row">
+              <span data-i18n="op_total_received">Operation Total:</span>
+              <strong id="op-edit-preview-total" style="color: var(--navy-900);">₨ 0</strong>
+            </div>
+            <div class="breakdown-row">
+              <span data-i18n="doctor_amount_cut">Doctor Amount:</span>
+              <strong id="op-edit-preview-doctor" style="color: var(--red-600);">₨ 0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary btn-close-modal" data-i18n="btn_cancel">Cancel</button>
+          <button type="submit" class="btn-primary" data-i18n="btn_update_op_entry">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Supabase Database Settings Modal
+       ========================================================================== -->
+  <div id="supabase-config-modal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 520px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          <h3 class="modal-title" data-i18n="supabase_config_title">Supabase Database Settings</h3>
+        </div>
+        <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0; line-height: 1.45;" data-i18n="supabase_config_desc">
+          Configure your Supabase Project URL and public anon key. The service-role key must NEVER be entered here.
+        </p>
+
+        <div id="supabase-config-alert" class="auth-error-banner" style="margin-bottom: 1rem; display: none;"></div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="sb-modal-url" class="form-label" data-i18n="supabase_url_label">Supabase Project URL</label>
+          <input type="url" id="sb-modal-url" class="form-input" placeholder="https://xyzcompany.supabase.co" data-i18n-placeholder="supabase_url_placeholder">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0.5rem;">
+          <label for="sb-modal-key" class="form-label" data-i18n="supabase_anon_label">Supabase Anon Key (Public)</label>
+          <textarea id="sb-modal-key" class="form-input" rows="3" style="resize: vertical; font-family: monospace; font-size: 0.78rem;" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." data-i18n-placeholder="supabase_anon_placeholder"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button type="button" id="btn-sb-clear-config" class="btn-secondary" style="color: #DC2626;" data-i18n="supabase_btn_clear_config">Reset to Local Mode</button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button type="button" id="btn-sb-test-conn" class="btn-secondary" data-i18n="supabase_btn_test">Test Connection</button>
+          <button type="button" id="btn-sb-save-config" class="btn-primary" data-i18n="supabase_btn_save_config">Save & Connect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Confirmation Dialog Modal
+       ========================================================================== -->
+  <div id="confirm-modal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="confirm-modal-title" class="modal-title" data-i18n="modal_confirm_title">Confirm Action</h3>
+        <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
+      </div>
+      <div id="confirm-modal-body" class="modal-body" style="font-size: 0.9rem; color: var(--text-secondary);">
+        <!-- Injected dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary btn-close-modal" data-i18n="btn_cancel">Cancel</button>
+        <button type="button" id="btn-confirm-action" class="btn-primary" data-i18n="btn_confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Stack Container -->
+  <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Supabase Official JS SDK & Client Architecture -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./js/supabase-config.js"></script>
+  <script src="./js/supabase-client.js"></script>
+
+  <!-- Core Clinic Services Architecture Modules -->
+  <script src="./js/language.js"></script>
+  <script src="./js/calculations.js"></script>
+  <script src="./js/services/user-service.js"></script>
+  <script src="./js/services/mri-service.js"></script>
+  <script src="./js/services/investigation-service.js"></script>
+  <script src="./js/services/operation-service.js"></script>
+  <script src="./js/storage.js"></script>
+  <script src="./js/validation.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/ui.js"></script>
+  <script src="./js/navigation.js"></script>
+  <script src="./js/pwa.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

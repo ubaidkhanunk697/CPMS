@@ -1,0 +1,321 @@
+/* ==========================================================================
+   Clinic Payment Management System - Responsive & RTL Adaptations
+   Breakpoints:
+     - Mobile: < 640px
+     - Tablet: 640px - 1024px
+     - Desktop: > 1024px
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Touch Target & Mobile-First Foundation
+   -------------------------------------------------------------------------- */
+button,
+.btn-primary,
+.btn-secondary,
+.nav-link,
+.tab-btn,
+.lang-btn,
+.filter-select,
+.form-control {
+  min-height: 44px; /* Accessible mobile touch target */
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Layout (< 640px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 639px) {
+  :root {
+    --header-height: 60px;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+  }
+
+  [dir="rtl"] .app-sidebar {
+    transform: translateX(100%);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+
+  [dir="rtl"] .app-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .app-main {
+    margin-inline-start: 0;
+    width: 100%;
+  }
+
+  .menu-toggle-btn {
+    display: inline-flex;
+  }
+
+  .app-header {
+    padding: 0 1rem;
+  }
+
+  .header-office-context {
+    max-width: 140px;
+  }
+
+  .header-office-title {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-officer-assigned {
+    display: none; /* Conserve header space on small mobile */
+  }
+
+  .header-actions {
+    gap: 0.5rem;
+  }
+
+  .btn-primary span.btn-text,
+  .btn-secondary span.btn-text {
+    display: none; /* Show icon only or concise button */
+  }
+
+  .btn-primary, .btn-secondary {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .app-content {
+    padding: 1.25rem 1rem;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .kpi-card {
+    padding: 1rem 1.15rem;
+  }
+
+  .kpi-value {
+    font-size: 1.5rem;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+  }
+
+  .search-input-wrap {
+    max-width: 100%;
+    min-width: 100%;
+  }
+
+  .filter-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .card-header .header-action-group {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  /* Modal on Mobile: Bottom Sheet style */
+  .modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-dialog {
+    max-width: 100%;
+    max-height: 85vh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  #toast-container {
+    top: auto;
+    bottom: 1rem;
+    inset-inline-end: 1rem;
+    width: calc(100% - 2rem);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Tablet Layout (640px to 1024px)
+   -------------------------------------------------------------------------- */
+@media (min-width: 640px) and (max-width: 1024px) {
+  :root {
+    --sidebar-width: 240px;
+  }
+
+  .app-sidebar {
+    width: var(--sidebar-width);
+    transform: translateX(0);
+  }
+
+  .app-main {
+    margin-inline-start: var(--sidebar-width);
+  }
+
+  .menu-toggle-btn {
+    display: none;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .app-content {
+    padding: 1.5rem 1.25rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Desktop & Large Screens (> 1024px)
+   -------------------------------------------------------------------------- */
+@media (min-width: 1025px) {
+  .menu-toggle-btn {
+    display: none;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .app-sidebar {
+    transform: translateX(0) !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   RTL (Urdu) Specific Overrides & Layout Mirroring
+   -------------------------------------------------------------------------- */
+[dir="rtl"] body {
+  letter-spacing: 0;
+}
+
+[dir="rtl"] .sidebar-header {
+  text-align: right;
+}
+
+[dir="rtl"] .brand-title {
+  letter-spacing: 0;
+}
+
+[dir="rtl"] .brand-subtitle {
+  letter-spacing: 0.02em;
+}
+
+[dir="rtl"] .search-input {
+  padding-inline-start: 0.85rem;
+  padding-inline-end: 2.3rem;
+}
+
+[dir="rtl"] .search-input-icon {
+  inset-inline-start: auto;
+  inset-inline-end: 0.85rem;
+}
+
+[dir="rtl"] .data-table th,
+[dir="rtl"] .data-table td {
+  text-align: right;
+}
+
+[dir="rtl"] .td-numeric {
+  direction: ltr;
+  text-align: right;
+  display: inline-block;
+  width: 100%;
+}
+
+[dir="rtl"] .modal-footer {
+  justify-content: flex-start;
+}
+
+/* RTL Layout Alignment & Mirroring */
+[dir="rtl"] .app-sidebar {
+  left: auto !important;
+  right: 0 !important;
+}
+
+[dir="rtl"] .app-main {
+  margin-left: 0 !important;
+  margin-right: var(--sidebar-width) !important;
+}
+
+@media (max-width: 639px) {
+  [dir="rtl"] .app-main {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+  }
+  
+  [dir="rtl"] .app-sidebar {
+    transform: translateX(100%) !important;
+  }
+  
+  [dir="rtl"] .app-sidebar.open {
+    transform: translateX(0) !important;
+  }
+}
+
+[dir="rtl"] .nav-link.active::before {
+  inset-inline-start: auto;
+  right: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+[dir="rtl"] .header-office-context {
+  text-align: right;
+}
+
+[dir="rtl"] .kpi-card {
+  text-align: right;
+}
+
+[dir="rtl"] .card-header {
+  text-align: right;
+}
+
+[dir="rtl"] .filter-bar {
+  direction: rtl;
+}
+
+/* RTL icon mirroring for directional arrows */
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
