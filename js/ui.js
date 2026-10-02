@@ -809,47 +809,62 @@ const UI = (function () {
         </article>
       `;
     } else {
-      // 3 Assistant (Operation) Summary Cards (100% Doctor)
-      container.innerHTML = `
-        <article class="kpi-card accent-blue">
-          <div class="kpi-header">
-            <span class="kpi-title" data-i18n="doc_summary_total_received">${LanguageManager.t('doc_summary_total_received')}</span>
-            <div class="kpi-icon-wrap">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
-            </div>
-          </div>
-          <div class="kpi-value">${CalculationEngine.formatPKR(metrics.opTotalReceived)}</div>
-          <div class="kpi-footer">
-            <span class="kpi-trend" style="color: var(--navy-900); font-weight: 600;">${LanguageManager.t('operation_office')}</span>
-          </div>
-        </article>
+      // 4 Assistant (Operation) Summary Cards matching Assistant Dashboard exactly
+      const opFinalTotal = metrics.opFinalTotal ?? metrics.todayFinalTotal ?? 0;
+      const opTotalReceived = metrics.opTotalReceived ?? metrics.todayTotalReceived ?? 0;
+      const opNetSxDay = metrics.opNetSxDay ?? metrics.todayNetSxDay ?? 0;
+      const opSubmittedPayment = metrics.opSubmittedPayment ?? metrics.todaySubmittedPayment ?? 0;
+      const opNetPayLater = metrics.opNetPayLater ?? metrics.todayNetPayLater ?? 0;
+      const opCount = metrics.opCount ?? metrics.todayEntriesCount ?? 0;
+      const totalOpCount = metrics.allTimeOpCount || metrics.allTimeEntriesCount || opCount;
 
-        <article class="kpi-card accent-red">
-          <div class="kpi-header">
-            <span class="kpi-title" data-i18n="doc_summary_doctor_amount">${LanguageManager.t('doc_summary_doctor_amount')}</span>
-            <div class="kpi-icon-wrap">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-          </div>
-          <div class="kpi-value" style="color: var(--red-600);">${CalculationEngine.formatPKR(metrics.opDoctorAmount)}</div>
-          <div class="kpi-footer">
-            <span class="kpi-trend trend-up">100% Doctor Amount (No Deduction)</span>
-          </div>
-        </article>
+      const cards = [
+        {
+          key: 'op_final_total',
+          title: LanguageManager.t('op_final_total'),
+          value: CalculationEngine.formatPKR(opFinalTotal),
+          accent: 'accent-navy',
+          footer: `${LanguageManager.t('op_received_payment')}: ${CalculationEngine.formatPKR(opTotalReceived)}`,
+          icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`
+        },
+        {
+          key: 'op_net_sx_day',
+          title: LanguageManager.t('op_net_sx_day'),
+          value: CalculationEngine.formatPKR(opNetSxDay),
+          accent: 'accent-green',
+          footer: `${LanguageManager.t('op_submitted_payment')}: ${CalculationEngine.formatPKR(opSubmittedPayment)}`,
+          icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`
+        },
+        {
+          key: 'op_net_pay_later',
+          title: LanguageManager.t('op_net_pay_later'),
+          value: CalculationEngine.formatPKR(opNetPayLater),
+          accent: 'accent-amber',
+          footer: `${LanguageManager.t('op_hdu_icu')} − ${LanguageManager.t('op_medicine')}`,
+          icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`
+        },
+        {
+          key: 'kpi_today_op_entries',
+          title: LanguageManager.t('kpi_today_op_entries'),
+          value: `${opCount}`,
+          accent: 'accent-red',
+          footer: `${totalOpCount} ${LanguageManager.t('kpi_cases_count')}`,
+          icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`
+        }
+      ];
 
-        <article class="kpi-card">
+      container.innerHTML = cards.map(c => `
+        <article class="kpi-card ${c.accent}">
           <div class="kpi-header">
-            <span class="kpi-title" data-i18n="doc_summary_entries_count">${LanguageManager.t('doc_summary_entries_count')}</span>
-            <div class="kpi-icon-wrap">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
+            <span class="kpi-title" data-i18n="${c.key}">${c.title}</span>
+            <div class="kpi-icon-wrap">${c.icon}</div>
           </div>
-          <div class="kpi-value">${metrics.opCount}</div>
+          <div class="kpi-value">${c.value}</div>
           <div class="kpi-footer">
-            <span class="kpi-trend" style="color: var(--text-secondary);">${LanguageManager.t('filter_opt_' + metrics.dateRange)}</span>
+            <span class="kpi-trend neutral">${c.footer}</span>
           </div>
         </article>
-      `;
+      `).join('');
     }
   }
 

@@ -23,7 +23,8 @@ const LanguageManager = (function () {
       // Officers & Doctor
       officer_aqeb: "Aqeb Khan",
       officer_shezaad: "Shezaad",
-      officer_mustajab: "Qari Mustajab",
+      officer_mustajab: "Assistant Console",
+      assistant_console: "Assistant Console",
       doctor_nawaz: "Admin Console",
       admin_console: "Admin Console",
       role_mri_officer: "MRI Incharge",
@@ -349,7 +350,8 @@ const LanguageManager = (function () {
       // Officers & Doctor
       officer_aqeb: "عاقب خان",
       officer_shezaad: "شہزاد",
-      officer_mustajab: "قاری مستجاب",
+      officer_mustajab: "اسسٹنٹ کنسول",
+      assistant_console: "اسسٹنٹ کنسول",
       doctor_nawaz: "ایڈمن کنسول",
       admin_console: "ایڈمن کنسول",
       role_mri_officer: "ایم آر آئی انچارج",

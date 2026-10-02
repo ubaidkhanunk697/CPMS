@@ -290,32 +290,33 @@ const CalculationEngine = (function () {
    * Calculates Operation summary KPI metrics from records
    * Computes totals for Net to Pay Sx Day, Net Pay Later, and Final Total
    */
-  function calculateOperationSummaryMetrics(records) {
+  function calculateOperationSummaryMetrics(records, dateRange = 'today') {
     if (!Array.isArray(records)) records = [];
-    const today = getTodayDateString();
-    const todayRecords = records.filter(r => (r.date ? r.date === today : (r.createdAt && r.createdAt.startsWith(today))));
-    const todayTotal = todayRecords.reduce((sum, r) => sum + (Number(r.payment || r.receivedPayment) || 0), 0);
-    const todaySubmitted = todayRecords.reduce((sum, r) => sum + (Number(r.submittedPayment) || 0), 0);
+    const filteredRecords = filterRecordsByDateRange(records, dateRange);
+    const totalReceived = filteredRecords.reduce((sum, r) => sum + (Number(r.payment || r.receivedPayment) || 0), 0);
+    const totalSubmitted = filteredRecords.reduce((sum, r) => sum + (Number(r.submittedPayment) || 0), 0);
 
-    let todayNetSxDay = 0;
-    let todayNetPayLater = 0;
-    let todayFinalTotal = 0;
+    let netSxDay = 0;
+    let netPayLater = 0;
+    let finalTotal = 0;
 
-    todayRecords.forEach(r => {
+    filteredRecords.forEach(r => {
       const calc = calculateOperationShare(r.payment || r.receivedPayment, r);
-      todayNetSxDay += calc.netToPaySxDay;
-      todayNetPayLater += calc.netPayLater;
-      todayFinalTotal += calc.finalTotal;
+      netSxDay += calc.netToPaySxDay;
+      netPayLater += calc.netPayLater;
+      finalTotal += calc.finalTotal;
     });
 
     return {
-      todayTotalReceived: todayTotal,
-      todaySubmittedPayment: todaySubmitted,
-      todayNetSxDay,
-      todayNetPayLater,
-      todayFinalTotal,
-      todayEntriesCount: todayRecords.length,
-      todayDoctorAmount: todayTotal
+      todayTotalReceived: totalReceived,
+      todaySubmittedPayment: totalSubmitted,
+      todayNetSxDay: netSxDay,
+      todayNetPayLater: netPayLater,
+      todayFinalTotal: finalTotal,
+      todayEntriesCount: filteredRecords.length,
+      todayDoctorAmount: totalReceived,
+      allTimeEntriesCount: records.length,
+      dateRange
     };
   }
 

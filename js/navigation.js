@@ -25,7 +25,7 @@ const NavigationManager = (function () {
       nameKey: 'operation_office',
       officerKey: 'officer_mustajab',
       officerRoleKey: 'role_asst_officer',
-      initials: 'QM',
+      initials: 'AC',
       accentColor: 'var(--warning-badge)'
     },
     doctor: {

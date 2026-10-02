@@ -46,11 +46,11 @@ const ClinicRepository = (function () {
       id: "operation",
       name: "Operation / Assistant Office",
       nameKey: "operation_office",
-      officer: "Qari Mustajab",
+      officer: "Assistant Console",
       officerKey: "officer_mustajab",
       role: "Surgical Assistant Incharge",
       roleKey: "role_asst_officer",
-      initials: "QM",
+      initials: "AC",
       accentColor: "var(--warning-badge)",
       description: "Operating theater coordination, surgical procedures, and minor operations."
     },
@@ -270,8 +270,21 @@ const ClinicRepository = (function () {
     const invTotalReceived = invFiltered.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
     const invDoctorAmount = invFiltered.reduce((sum, r) => sum + (Number(r.doctorAmount) || 0), 0);
 
-    const opTotalReceived = opFiltered.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
+    const opTotalReceived = opFiltered.reduce((sum, r) => sum + (Number(r.payment || r.receivedPayment) || 0), 0);
     const opDoctorAmount = opFiltered.reduce((sum, r) => sum + (Number(r.doctorAmount) || 0), 0);
+
+    let opSubmittedPayment = 0;
+    let opNetSxDay = 0;
+    let opNetPayLater = 0;
+    let opFinalTotal = 0;
+
+    opFiltered.forEach(r => {
+      const calc = CalculationEngine.calculateOperationShare(r.payment || r.receivedPayment, r);
+      opSubmittedPayment += calc.submittedPayment;
+      opNetSxDay += calc.netToPaySxDay;
+      opNetPayLater += calc.netPayLater;
+      opFinalTotal += calc.finalTotal;
+    });
 
     const grandDoctorTotal = mriDoctorAmount + invDoctorAmount + opDoctorAmount;
     const totalReceivedAcrossOffices = mriTotalReceived + invTotalReceived + opTotalReceived;
@@ -288,7 +301,12 @@ const ClinicRepository = (function () {
       invCount: invFiltered.length,
       opTotalReceived,
       opDoctorAmount,
+      opSubmittedPayment,
+      opNetSxDay,
+      opNetPayLater,
+      opFinalTotal,
       opCount: opFiltered.length,
+      allTimeOpCount: opAll.length,
       grandDoctorTotal,
       totalReceivedAcrossOffices,
       totalEntriesAcrossOffices

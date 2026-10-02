@@ -39,13 +39,13 @@ const UserService = (function () {
       email: 'mustajab@test.com',
       altEmail: 'mustajab@clinic.local',
       username: 'mustajab',
-      name: 'Qari Mustajab',
+      name: 'Assistant Console',
       nameKey: 'officer_mustajab',
       role: 'operation_officer',
       roleKey: 'role_asst_officer',
       office: 'operation',
       officeNameKey: 'operation_office',
-      initials: 'QM',
+      initials: 'AC',
       accentColor: 'var(--warning-badge)'
     },
     {
@@ -132,7 +132,7 @@ const UserService = (function () {
     const officeRoleMap = {
       mri: { nameKey: 'officer_aqeb', roleKey: 'role_mri_officer', officeNameKey: 'mri_office', initials: 'AK', accentColor: 'var(--red-500)' },
       investigation: { nameKey: 'officer_shezaad', roleKey: 'role_inv_officer', officeNameKey: 'investigation_office', initials: 'SH', accentColor: 'var(--info-badge)' },
-      operation: { nameKey: 'officer_mustajab', roleKey: 'role_asst_officer', officeNameKey: 'operation_office', initials: 'QM', accentColor: 'var(--warning-badge)' },
+      operation: { nameKey: 'officer_mustajab', roleKey: 'role_asst_officer', officeNameKey: 'operation_office', initials: 'AC', accentColor: 'var(--warning-badge)' },
       doctor: { nameKey: 'doctor_nawaz', roleKey: 'role_consultant', officeNameKey: 'doctor_office', initials: 'AC', accentColor: 'var(--navy-900)' }
     };
 
