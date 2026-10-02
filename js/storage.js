@@ -56,7 +56,7 @@ const ClinicRepository = (function () {
     },
     {
       id: "doctor",
-      name: "Doctor Office",
+      name: "Head Office",
       nameKey: "doctor_office",
       officer: "Dr. Nawaz Khattak",
       officerKey: "doctor_nawaz",

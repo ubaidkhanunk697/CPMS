@@ -18,7 +18,7 @@ const LanguageManager = (function () {
       mri_office: "MRI Office",
       investigation_office: "Investigation Office",
       operation_office: "Operation / Assistant Office",
-      doctor_office: "Doctor Office",
+      doctor_office: "Head Office",
       
       // Officers & Doctor
       officer_aqeb: "Aqeb Khan",
@@ -240,16 +240,16 @@ const LanguageManager = (function () {
       toast_op_cleared: "All Operation records have been deleted.",
 
       // Doctor Main Dashboard Dedicated Strings (Doctor: Dr. Nawaz Khattak)
-      doctor_dashboard_title: "Doctor Executive Dashboard",
-      doctor_name_title: "Dr. Nawaz Khattak",
-      doctor_grand_total: "Doctor Grand Total",
-      doctor_grand_total_desc: "Net doctor earnings aggregated across MRI, Investigation, and Assistant offices",
+      doctor_dashboard_title: "FINANCIAL OVERVIEW DASHBOARD",
+      doctor_name_title: "Financial Summary",
+      doctor_grand_total: "Total Earnings",
+      doctor_grand_total_desc: "Net revenue aggregated across MRI, Investigation, and Assistant units",
       doctor_total_clinic_revenue: "Total Received Across All Offices",
       doctor_total_clinic_entries: "Total Entries Across All Offices",
-      doctor_formula_mri: "MRI Doctor Share",
-      doctor_formula_inv: "Investigation Doctor Share",
-      doctor_formula_asst: "Assistant Doctor Share",
-      doctor_formula_equals: "Grand Doctor Total",
+      doctor_formula_mri: "MRI Share",
+      doctor_formula_inv: "Investigation Share",
+      doctor_formula_asst: "Assistant Share",
+      doctor_formula_equals: "Grand Total",
 
       // Doctor Tabs
       doctor_tab_mri: "MRI",
@@ -343,7 +343,7 @@ const LanguageManager = (function () {
       mri_office: "ایم آر آئی دفتر",
       investigation_office: "تحقیقاتی لیب دفتر",
       operation_office: "آپریشن / اسسٹنٹ دفتر",
-      doctor_office: "ڈاکٹر کا دفتر",
+      doctor_office: "ہیڈ آفس",
       
       // Officers & Doctor
       officer_aqeb: "عاقب خان",
@@ -567,16 +567,16 @@ const LanguageManager = (function () {
       toast_op_cleared: "تمام آپریشن ریکارڈز حذف کر دیے گئے۔",
 
       // Doctor Main Dashboard Dedicated Strings (Urdu)
-      doctor_dashboard_title: "ڈاکٹر ایگزیکٹو ڈیش بورڈ",
-      doctor_name_title: "ڈاکٹر نواز خٹک",
-      doctor_grand_total: "ڈاکٹر کی مجموعی کل رقم (گرینڈ ٹوٹل)",
-      doctor_grand_total_desc: "ایم آر آئی، لیب تحقیقات اور اسسٹنٹ آپریشنز سے حاصل کردہ ڈاکٹر کی خالص رقم",
+      doctor_dashboard_title: "مالیاتی جائزہ ڈیش بورڈ",
+      doctor_name_title: "مالیاتی خلاصہ",
+      doctor_grand_total: "کل آمدنی",
+      doctor_grand_total_desc: "ایم آر آئی، تحقیقات اور اسسٹنٹ یونٹس سے حاصل کردہ خالص آمدنی",
       doctor_total_clinic_revenue: "تمام دفاتر کی مجموعی موصولی",
       doctor_total_clinic_entries: "تمام دفاتر کے کل اندراجات",
-      doctor_formula_mri: "ایم آر آئی ڈاکٹر حصہ",
-      doctor_formula_inv: "تحقیقاتی ڈاکٹر حصہ",
-      doctor_formula_asst: "اسسٹنٹ ڈاکٹر حصہ",
-      doctor_formula_equals: "ڈاکٹر کی مجموعی کل رقم",
+      doctor_formula_mri: "ایم آر آئی حصہ",
+      doctor_formula_inv: "تحقیقاتی حصہ",
+      doctor_formula_asst: "اسسٹنٹ حصہ",
+      doctor_formula_equals: "مجموعی کل رقم",
 
       // Doctor Tabs
       doctor_tab_mri: "ایم آر آئی",
