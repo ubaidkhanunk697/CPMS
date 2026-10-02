@@ -54,13 +54,13 @@ const UserService = (function () {
       altEmail: 'doctor@clinic.local',
       username: 'drnawaz',
       altUsername: 'doctor',
-      name: 'Dr. Nawaz Khattak',
+      name: 'Admin Console',
       nameKey: 'doctor_nawaz',
       role: 'doctor',
       roleKey: 'role_consultant',
       office: 'doctor',
       officeNameKey: 'doctor_office',
-      initials: 'NK',
+      initials: 'AC',
       accentColor: 'var(--navy-900)'
     }
   ];
@@ -133,7 +133,7 @@ const UserService = (function () {
       mri: { nameKey: 'officer_aqeb', roleKey: 'role_mri_officer', officeNameKey: 'mri_office', initials: 'AK', accentColor: 'var(--red-500)' },
       investigation: { nameKey: 'officer_shezaad', roleKey: 'role_inv_officer', officeNameKey: 'investigation_office', initials: 'SH', accentColor: 'var(--info-badge)' },
       operation: { nameKey: 'officer_mustajab', roleKey: 'role_asst_officer', officeNameKey: 'operation_office', initials: 'QM', accentColor: 'var(--warning-badge)' },
-      doctor: { nameKey: 'doctor_nawaz', roleKey: 'role_consultant', officeNameKey: 'doctor_office', initials: 'NK', accentColor: 'var(--navy-900)' }
+      doctor: { nameKey: 'doctor_nawaz', roleKey: 'role_consultant', officeNameKey: 'doctor_office', initials: 'AC', accentColor: 'var(--navy-900)' }
     };
 
     const targetOffice = row.office || known.office || 'mri';

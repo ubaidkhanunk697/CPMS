@@ -58,11 +58,11 @@ const ClinicRepository = (function () {
       id: "doctor",
       name: "Head Office",
       nameKey: "doctor_office",
-      officer: "Dr. Nawaz Khattak",
+      officer: "Admin Console",
       officerKey: "doctor_nawaz",
       role: "Lead Consultant Surgeon",
       roleKey: "role_consultant",
-      initials: "NK",
+      initials: "AC",
       accentColor: "var(--navy-900)",
       description: "Primary physician clinical consultation, surgery planning, and financial oversight."
     }

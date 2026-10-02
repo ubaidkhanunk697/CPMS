@@ -32,7 +32,7 @@ const NavigationManager = (function () {
       nameKey: 'doctor_office',
       officerKey: 'doctor_nawaz',
       officerRoleKey: 'role_consultant',
-      initials: 'NK',
+      initials: 'AC',
       accentColor: 'var(--navy-900)'
     }
   };
