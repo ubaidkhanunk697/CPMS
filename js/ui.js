@@ -303,35 +303,43 @@ const UI = (function () {
   /* ------------------------------------------------------------------------
      3D. Operation/Assistant Office Dedicated Summary Cards Renderer
      Officer: Qari Mustajab
-     Summary cards: Today's Total Received, Today's Operation Entries, Doctor Amount (100%)
+     Summary cards: Final Total, Net to Pay Sx Day, Net Pay Later, Today's Operation Entries
      ------------------------------------------------------------------------ */
   function renderOperationSummaryCards(container, metrics) {
     if (!container) return;
 
     const cards = [
       {
-        key: 'kpi_today_total_received',
-        title: LanguageManager.t('kpi_today_total_received'),
-        value: CalculationEngine.formatPKR(metrics.todayTotalReceived),
+        key: 'op_final_total',
+        title: LanguageManager.t('op_final_total'),
+        value: CalculationEngine.formatPKR(metrics.todayFinalTotal),
         accent: 'accent-navy',
-        footer: `${metrics.allTimeTotalReceived ? CalculationEngine.formatPKR(metrics.allTimeTotalReceived) : '₨ 0'} ${LanguageManager.t('filter_all_time')}`,
+        footer: `${LanguageManager.t('op_received_payment')}: ${CalculationEngine.formatPKR(metrics.todayTotalReceived)}`,
         icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`
+      },
+      {
+        key: 'op_net_sx_day',
+        title: LanguageManager.t('op_net_sx_day'),
+        value: CalculationEngine.formatPKR(metrics.todayNetSxDay),
+        accent: 'accent-green',
+        footer: `${LanguageManager.t('op_submitted_payment')}: ${CalculationEngine.formatPKR(metrics.todaySubmittedPayment)}`,
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`
+      },
+      {
+        key: 'op_net_pay_later',
+        title: LanguageManager.t('op_net_pay_later'),
+        value: CalculationEngine.formatPKR(metrics.todayNetPayLater),
+        accent: 'accent-amber',
+        footer: `${LanguageManager.t('op_hdu_icu')} − ${LanguageManager.t('op_medicine')}`,
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`
       },
       {
         key: 'kpi_today_op_entries',
         title: LanguageManager.t('kpi_today_op_entries'),
         value: `${metrics.todayEntriesCount}`,
-        accent: 'accent-amber',
-        footer: `${metrics.allTimeEntriesCount} ${LanguageManager.t('kpi_cases_count')}`,
-        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`
-      },
-      {
-        key: 'kpi_doctor_amount',
-        title: LanguageManager.t('kpi_doctor_amount'),
-        value: CalculationEngine.formatPKR(metrics.todayDoctorAmount),
         accent: 'accent-red',
-        footer: `${LanguageManager.t('doctor_nawaz')} (100%)`,
-        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`
+        footer: `${metrics.allTimeEntriesCount || metrics.todayEntriesCount} ${LanguageManager.t('kpi_cases_count')}`,
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`
       }
     ];
 
@@ -478,7 +486,7 @@ const UI = (function () {
   /* ------------------------------------------------------------------------
      4D. Operation Payment History Table Renderer
      Officer: Qari Mustajab
-     Columns: Patient Name | Operation Name | Payment | Date | Day | Actions (Edit, Delete)
+     Columns: Patient Name | Operation Type | Received | Net Sx Day | Net Pay Later | Final Total | Date | Day | Actions
      ------------------------------------------------------------------------ */
   function renderOperationTable(tbody, records) {
     if (!tbody) return;
@@ -486,7 +494,7 @@ const UI = (function () {
     if (!records || records.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-secondary);">
+          <td colspan="9" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-secondary);">
             <div style="font-weight: 600; font-size: 1rem; margin-bottom: 0.35rem;">${LanguageManager.t('empty_title')}</div>
             <div style="font-size: 0.82rem; color: var(--text-muted);">${LanguageManager.t('empty_desc')}</div>
           </td>
@@ -499,6 +507,8 @@ const UI = (function () {
 
     tbody.innerHTML = records.map(r => {
       const localizedDay = CalculationEngine.getDayNameFromDate(r.date, isUrdu) || r.day || '-';
+      const opType = r.operationType || r.operationName || '-';
+      const calc = CalculationEngine.calculateOperationShare(r.payment || r.receivedPayment, r);
 
       return `
         <tr>
@@ -507,10 +517,25 @@ const UI = (function () {
             <small style="color: var(--text-muted); font-size: 0.75rem;">${r.id}</small>
           </td>
           <td style="font-weight: 600; color: var(--text-main);">
-            ${r.operationName}
+            ${opType}
           </td>
           <td>
-            <strong style="color: var(--navy-900); font-variant-numeric: tabular-nums;">${CalculationEngine.formatPKR(r.payment)}</strong>
+            <strong style="color: var(--navy-900); font-variant-numeric: tabular-nums;">${CalculationEngine.formatPKR(r.payment || r.receivedPayment)}</strong>
+          </td>
+          <td>
+            <span style="font-variant-numeric: tabular-nums; color: #047857; font-weight: 600;">
+              ${CalculationEngine.formatPKR(calc.netToPaySxDay)}
+            </span>
+          </td>
+          <td>
+            <span style="font-variant-numeric: tabular-nums; color: #B45309; font-weight: 600;">
+              ${CalculationEngine.formatPKR(calc.netPayLater)}
+            </span>
+          </td>
+          <td>
+            <strong style="color: #1E40AF; font-variant-numeric: tabular-nums; font-weight: 700;">
+              ${CalculationEngine.formatPKR(calc.finalTotal)}
+            </strong>
           </td>
           <td style="font-size: 0.82rem; color: var(--text-secondary); white-space: nowrap;">
             ${CalculationEngine.formatDate(r.date)}
@@ -861,9 +886,11 @@ const UI = (function () {
       thead.innerHTML = `
         <tr>
           <th data-i18n="col_patient_name">${LanguageManager.t('col_patient_name')}</th>
-          <th data-i18n="col_operation_name">${LanguageManager.t('col_operation_name')}</th>
-          <th data-i18n="col_payment">${LanguageManager.t('col_payment')}</th>
-          <th data-i18n="col_doctor_amount">${LanguageManager.t('col_doctor_amount')}</th>
+          <th data-i18n="col_operation_type">${LanguageManager.t('col_operation_type')}</th>
+          <th data-i18n="col_received">${LanguageManager.t('col_received')}</th>
+          <th data-i18n="col_net_sx_day">${LanguageManager.t('col_net_sx_day')}</th>
+          <th data-i18n="col_net_pay_later">${LanguageManager.t('col_net_pay_later')}</th>
+          <th data-i18n="col_final_total">${LanguageManager.t('col_final_total')}</th>
           <th data-i18n="col_date">${LanguageManager.t('col_date')}</th>
           <th data-i18n="col_day">${LanguageManager.t('col_day')}</th>
           <th data-i18n="col_actions">${LanguageManager.t('col_actions')}</th>
@@ -951,12 +978,17 @@ const UI = (function () {
         `;
       } else {
         // Assistant (Operation)
+        const opType = r.operationType || r.operationName || '-';
+        const calc = CalculationEngine.calculateOperationShare(r.payment || r.receivedPayment, r);
+
         return `
           <tr>
             <td style="font-weight: 600; color: var(--navy-900);">${r.patientName}</td>
-            <td style="font-weight: 500;">${r.operationName}</td>
-            <td><strong style="color: var(--navy-900);">${CalculationEngine.formatPKR(r.payment)}</strong></td>
-            <td><span style="color: var(--red-600); font-weight: 700;">${CalculationEngine.formatPKR(r.doctorAmount)}</span></td>
+            <td style="font-weight: 500;">${opType}</td>
+            <td><strong style="color: var(--navy-900); font-variant-numeric: tabular-nums;">${CalculationEngine.formatPKR(r.payment || r.receivedPayment)}</strong></td>
+            <td><span style="font-variant-numeric: tabular-nums; color: #047857; font-weight: 600;">${CalculationEngine.formatPKR(calc.netToPaySxDay)}</span></td>
+            <td><span style="font-variant-numeric: tabular-nums; color: #B45309; font-weight: 600;">${CalculationEngine.formatPKR(calc.netPayLater)}</span></td>
+            <td><strong style="color: #1E40AF; font-variant-numeric: tabular-nums; font-weight: 700;">${CalculationEngine.formatPKR(calc.finalTotal)}</strong></td>
             <td style="font-size: 0.82rem; color: var(--text-secondary);">${formattedDate}</td>
             <td><span class="badge" style="background: var(--bg-subtle); color: var(--navy-900);">${r.day}</span></td>
             <td>

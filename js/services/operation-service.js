@@ -11,13 +11,38 @@ const OperationService = (function () {
 
   function mapRowToModel(row) {
     if (!row) return null;
-    const payment = Number(row.payment_amount ?? row.payment ?? 0);
+    const payment = Number(row.payment_amount ?? row.received_payment ?? row.receivedPayment ?? row.payment ?? 0);
+    const submittedPayment = Number(row.submitted_payment ?? row.submittedPayment ?? 0);
+    const admissionSlip = Number(row.admission_slip ?? row.admissionSlip ?? 0);
+    const assistantFee = Number(row.assistant_fee ?? row.assistantFee ?? row.assistant ?? 0);
+    const hduIcu = Number(row.hdu_icu ?? row.hduIcu ?? 0);
+    const medicine = Number(row.medicine ?? row.medicineExpense ?? 0);
+    const opType = row.operation_type || row.operation_name || row.operationName || 'Surgical Procedure';
+
+    const calc = CalculationEngine.calculateOperationShare(payment, {
+      submittedPayment,
+      admissionSlip,
+      assistantFee,
+      hduIcu,
+      medicine
+    });
 
     return {
       id: String(row.id),
       patientName: row.patient_name || row.patientName || 'Unknown Patient',
-      operationName: row.operation_name || row.operationName || 'Surgical Procedure',
+      operationType: opType,
+      operationName: opType,
       payment: payment,
+      receivedPayment: payment,
+      submittedPayment: submittedPayment,
+      admissionSlip: admissionSlip,
+      assistantFee: assistantFee,
+      assistant: assistantFee,
+      hduIcu: hduIcu,
+      medicine: medicine,
+      netToPaySxDay: calc.netToPaySxDay,
+      netPayLater: calc.netPayLater,
+      finalTotal: calc.finalTotal,
       doctorAmount: payment, // 100% to Doctor
       officeShare: 0,
       date: row.date || CalculationEngine.getTodayDateString(),
@@ -51,7 +76,43 @@ const OperationService = (function () {
           .order('created_at', { ascending: false });
 
         if (!error && Array.isArray(data)) {
-          const mapped = data.map(mapRowToModel);
+          // Merge with any local extended fields if present
+          const localMap = new Map(getLocalRecords().map(r => [r.id, r]));
+          const mapped = data.map(row => {
+            const m = mapRowToModel(row);
+            const local = localMap.get(m.id);
+            if (local) {
+              m.operationType = (row.operation_type !== undefined && row.operation_type !== null)
+                ? row.operation_type
+                : (local.operationType || m.operationType);
+
+              m.submittedPayment = (row.submitted_payment !== undefined && row.submitted_payment !== null)
+                ? Number(row.submitted_payment)
+                : Number(local.submittedPayment || 0);
+
+              m.admissionSlip = (row.admission_slip !== undefined && row.admission_slip !== null)
+                ? Number(row.admission_slip)
+                : Number(local.admissionSlip || 0);
+
+              m.assistantFee = (row.assistant_fee !== undefined && row.assistant_fee !== null)
+                ? Number(row.assistant_fee)
+                : Number(local.assistantFee ?? local.assistant ?? 0);
+              m.assistant = m.assistantFee;
+
+              m.hduIcu = (row.hdu_icu !== undefined && row.hdu_icu !== null)
+                ? Number(row.hdu_icu)
+                : Number(local.hduIcu || 0);
+
+              m.medicine = (row.medicine !== undefined && row.medicine !== null)
+                ? Number(row.medicine)
+                : Number(local.medicine || 0);
+            }
+            const c = CalculationEngine.calculateOperationShare(m.payment, m);
+            m.netToPaySxDay = c.netToPaySxDay;
+            m.netPayLater = c.netPayLater;
+            m.finalTotal = c.finalTotal;
+            return m;
+          });
           saveLocalRecords(mapped);
           return mapped;
         } else if (error) {
@@ -70,7 +131,13 @@ const OperationService = (function () {
   }
 
   async function create(recordData) {
-    const payment = Number(recordData.payment || recordData.paymentAmount || 0);
+    const payment = Number(recordData.receivedPayment || recordData.payment || recordData.paymentAmount || 0);
+    const submittedPayment = Math.max(0, Number(recordData.submittedPayment) || 0);
+    const admissionSlip = Math.max(0, Number(recordData.admissionSlip) || 0);
+    const assistantFee = Math.max(0, Number(recordData.assistantFee ?? recordData.assistant) || 0);
+    const hduIcu = Math.max(0, Number(recordData.hduIcu) || 0);
+    const medicine = Math.max(0, Number(recordData.medicine) || 0);
+    const opType = (recordData.operationType || recordData.operationName || 'Surgical Procedure').trim();
     const date = recordData.date || CalculationEngine.getTodayDateString();
     const day = CalculationEngine.getDayNameFromDate(date, false);
 
@@ -81,30 +148,64 @@ const OperationService = (function () {
       if (user && user.id && user.id.includes('-')) currentUserId = user.id;
     } catch (_) {}
 
-    const payload = {
+    const basePayload = {
       patient_name: recordData.patientName.trim(),
-      operation_name: recordData.operationName.trim(),
+      operation_name: opType,
       payment_amount: payment,
       date: date,
       day: day,
       created_by: currentUserId
     };
 
+    const extendedPayload = {
+      ...basePayload,
+      operation_type: opType,
+      submitted_payment: submittedPayment,
+      admission_slip: admissionSlip,
+      assistant_fee: assistantFee,
+      hdu_icu: hduIcu,
+      medicine: medicine
+    };
+
     if (SupabaseClient.isReady()) {
       try {
         const client = SupabaseClient.getClient();
-        const { data, error } = await client
+        let res = await client
           .from('operation_payments')
-          .insert([payload])
+          .insert([extendedPayload])
           .select()
           .single();
 
-        if (error) {
-          console.warn("[OperationService] Supabase insert warning:", error);
-          throw new Error(SupabaseClient.formatErrorMessage(error));
+        // If Supabase schema lacks the new columns, fall back to basePayload
+        if (res.error && (res.error.code === 'PGRST204' || (res.error.message && res.error.message.includes('column')))) {
+          res = await client
+            .from('operation_payments')
+            .insert([basePayload])
+            .select()
+            .single();
         }
-        if (data) {
-          const mapped = mapRowToModel(data);
+
+        if (res.error) {
+          console.warn("[OperationService] Supabase insert warning:", res.error);
+          throw new Error(SupabaseClient.formatErrorMessage(res.error));
+        }
+
+        if (res.data) {
+          const mapped = mapRowToModel(res.data);
+          // Preserve all optional fields in local storage record
+          mapped.operationType = opType;
+          mapped.submittedPayment = submittedPayment;
+          mapped.admissionSlip = admissionSlip;
+          mapped.assistantFee = assistantFee;
+          mapped.assistant = assistantFee;
+          mapped.hduIcu = hduIcu;
+          mapped.medicine = medicine;
+
+          const c = CalculationEngine.calculateOperationShare(mapped.payment, mapped);
+          mapped.netToPaySxDay = c.netToPaySxDay;
+          mapped.netPayLater = c.netPayLater;
+          mapped.finalTotal = c.finalTotal;
+
           const current = getLocalRecords();
           current.unshift(mapped);
           saveLocalRecords(current);
@@ -116,17 +217,36 @@ const OperationService = (function () {
     }
 
     // Local Storage Fallback
+    const localCalc = CalculationEngine.calculateOperationShare(payment, {
+      submittedPayment,
+      admissionSlip,
+      assistantFee,
+      assistant: assistantFee,
+      hduIcu,
+      medicine
+    });
     const localRecord = {
       id: 'OP-' + Date.now().toString(36).toUpperCase(),
-      patientName: payload.patient_name,
-      operationName: payload.operation_name,
-      payment: payload.payment_amount,
-      doctorAmount: payload.payment_amount,
+      patientName: basePayload.patient_name,
+      operationType: opType,
+      operationName: opType,
+      payment: payment,
+      receivedPayment: payment,
+      submittedPayment: submittedPayment,
+      admissionSlip: admissionSlip,
+      assistantFee: assistantFee,
+      assistant: assistantFee,
+      hduIcu: hduIcu,
+      medicine: medicine,
+      doctorAmount: payment,
       officeShare: 0,
-      date: payload.date,
-      day: payload.day,
+      netToPaySxDay: localCalc.netToPaySxDay,
+      netPayLater: localCalc.netPayLater,
+      finalTotal: localCalc.finalTotal,
+      date: basePayload.date,
+      day: basePayload.day,
       createdAt: new Date().toISOString(),
-      createdBy: payload.created_by
+      createdBy: basePayload.created_by
     };
     const current = getLocalRecords();
     current.unshift(localRecord);
@@ -136,32 +256,68 @@ const OperationService = (function () {
 
   async function update(id, updates) {
     if (!updates) updates = {};
-    const payment = Number(updates.payment || updates.paymentAmount || 0);
+    const payment = Number(updates.receivedPayment || updates.payment || updates.paymentAmount || 0);
+    const submittedPayment = Math.max(0, Number(updates.submittedPayment) || 0);
+    const admissionSlip = Math.max(0, Number(updates.admissionSlip) || 0);
+    const assistantFee = Math.max(0, Number(updates.assistantFee ?? updates.assistant) || 0);
+    const hduIcu = Math.max(0, Number(updates.hduIcu) || 0);
+    const medicine = Math.max(0, Number(updates.medicine) || 0);
+    const opType = (updates.operationType || updates.operationName || updates.patient_name || '').trim();
     const date = updates.date || CalculationEngine.getTodayDateString();
     const day = CalculationEngine.getDayNameFromDate(date, false);
 
-    const payload = {
+    const basePayload = {
       patient_name: (updates.patientName || updates.patient_name || '').trim(),
-      operation_name: (updates.operationName || updates.operation_name || '').trim(),
+      operation_name: opType,
       payment_amount: payment,
       date: date,
       day: day
     };
 
+    const extendedPayload = {
+      ...basePayload,
+      operation_type: opType,
+      submitted_payment: submittedPayment,
+      admission_slip: admissionSlip,
+      assistant_fee: assistantFee,
+      hdu_icu: hduIcu,
+      medicine: medicine
+    };
+
     if (SupabaseClient.isReady()) {
       try {
         const client = SupabaseClient.getClient();
-        const { data, error } = await client
+        let res = await client
           .from('operation_payments')
-          .update(payload)
+          .update(extendedPayload)
           .eq('id', id)
           .select()
           .single();
 
-        if (error) {
-          console.warn("[OperationService] Supabase update warning:", error);
-        } else if (data) {
-          const mapped = mapRowToModel(data);
+        if (res.error && (res.error.code === 'PGRST204' || (res.error.message && res.error.message.includes('column')))) {
+          res = await client
+            .from('operation_payments')
+            .update(basePayload)
+            .eq('id', id)
+            .select()
+            .single();
+        }
+
+        if (res.data) {
+          const mapped = mapRowToModel(res.data);
+          mapped.operationType = opType;
+          mapped.submittedPayment = submittedPayment;
+          mapped.admissionSlip = admissionSlip;
+          mapped.assistantFee = assistantFee;
+          mapped.assistant = assistantFee;
+          mapped.hduIcu = hduIcu;
+          mapped.medicine = medicine;
+
+          const c = CalculationEngine.calculateOperationShare(mapped.payment, mapped);
+          mapped.netToPaySxDay = c.netToPaySxDay;
+          mapped.netPayLater = c.netPayLater;
+          mapped.finalTotal = c.finalTotal;
+
           const current = getLocalRecords().map(r => r.id === String(id) ? mapped : r);
           saveLocalRecords(current);
           return { data: mapped, error: null };
@@ -175,14 +331,33 @@ const OperationService = (function () {
     const current = getLocalRecords();
     const index = current.findIndex(r => r.id === String(id));
     if (index !== -1) {
+      const localCalc = CalculationEngine.calculateOperationShare(payment, {
+        submittedPayment,
+        admissionSlip,
+        assistantFee,
+        assistant: assistantFee,
+        hduIcu,
+        medicine
+      });
       current[index] = {
         ...current[index],
-        patientName: payload.patient_name,
-        operationName: payload.operation_name,
-        payment: payload.payment_amount,
-        doctorAmount: payload.payment_amount,
-        date: payload.date,
-        day: payload.day
+        patientName: basePayload.patient_name,
+        operationType: opType,
+        operationName: opType,
+        payment: payment,
+        receivedPayment: payment,
+        submittedPayment: submittedPayment,
+        admissionSlip: admissionSlip,
+        assistantFee: assistantFee,
+        assistant: assistantFee,
+        hduIcu: hduIcu,
+        medicine: medicine,
+        doctorAmount: payment,
+        netToPaySxDay: localCalc.netToPaySxDay,
+        netPayLater: localCalc.netPayLater,
+        finalTotal: localCalc.finalTotal,
+        date: basePayload.date,
+        day: basePayload.day
       };
       saveLocalRecords(current);
       return { data: current[index], error: null };
@@ -241,6 +416,7 @@ const OperationService = (function () {
     update,
     delete: deleteRecord,
     clearAll,
-    saveLocalRecords
+    saveLocalRecords,
+    getLocalRecords
   };
 })();

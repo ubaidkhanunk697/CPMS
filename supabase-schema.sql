@@ -82,7 +82,13 @@ create table if not exists public.operation_payments (
   id uuid primary key default gen_random_uuid(),
   patient_name text not null,
   operation_name text not null,
+  operation_type text,
   payment_amount numeric(12,2) not null check (payment_amount > 0),
+  submitted_payment numeric(12,2) default 0,
+  admission_slip numeric(12,2) default 0,
+  assistant_fee numeric(12,2) default 0,
+  hdu_icu numeric(12,2) default 0,
+  medicine numeric(12,2) default 0,
   date date not null default current_date,
   day text not null default trim(to_char(current_date, 'Day')),
   created_at timestamptz not null default now(),
@@ -90,6 +96,14 @@ create table if not exists public.operation_payments (
   created_by uuid not null default auth.uid()
     references auth.users(id) on delete set null
 );
+
+-- Migration helpers for existing operation_payments table:
+alter table if exists public.operation_payments add column if not exists operation_type text;
+alter table if exists public.operation_payments add column if not exists submitted_payment numeric(12,2) default 0;
+alter table if exists public.operation_payments add column if not exists admission_slip numeric(12,2) default 0;
+alter table if exists public.operation_payments add column if not exists assistant_fee numeric(12,2) default 0;
+alter table if exists public.operation_payments add column if not exists hdu_icu numeric(12,2) default 0;
+alter table if exists public.operation_payments add column if not exists medicine numeric(12,2) default 0;
 
 -- =============================================================================
 -- 3. INDEXES

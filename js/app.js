@@ -111,9 +111,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const opPaymentInput = document.getElementById('op-payment-input');
   const opDateInput = document.getElementById('op-date-input');
   const opDayInput = document.getElementById('op-day-input');
+  const opSubmittedPayment = document.getElementById('op-submitted-payment');
+  const opAdmissionSlip = document.getElementById('op-admission-slip');
+  const opAssistantFee = document.getElementById('op-assistant-fee');
+  const opHduIcu = document.getElementById('op-hdu-icu');
+  const opMedicine = document.getElementById('op-medicine');
   const opLivePayment = document.getElementById('op-live-payment');
+  const opLiveSubmitted = document.getElementById('op-live-submitted');
   const opLiveTotal = document.getElementById('op-live-total');
   const opLiveDoctor = document.getElementById('op-live-doctor');
+  const opLiveNetSx = document.getElementById('op-live-net-sx');
+  const opLiveNetLater = document.getElementById('op-live-net-later');
+  const opLiveFinalTotal = document.getElementById('op-live-final-total');
 
   // Operation Edit Modal Elements
   const opEditModal = document.getElementById('op-edit-modal');
@@ -124,8 +133,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const opEditPaymentInput = document.getElementById('op-edit-payment-input');
   const opEditDateInput = document.getElementById('op-edit-date-input');
   const opEditDayInput = document.getElementById('op-edit-day-input');
+  const opEditSubmittedPayment = document.getElementById('op-edit-submitted-payment');
+  const opEditAdmissionSlip = document.getElementById('op-edit-admission-slip');
+  const opEditAssistantFee = document.getElementById('op-edit-assistant-fee');
+  const opEditHduIcu = document.getElementById('op-edit-hdu-icu');
+  const opEditMedicine = document.getElementById('op-edit-medicine');
   const opEditPreviewTotal = document.getElementById('op-edit-preview-total');
+  const opEditPreviewSubmitted = document.getElementById('op-edit-preview-submitted');
   const opEditPreviewDoctor = document.getElementById('op-edit-preview-doctor');
+  const opEditPreviewNetSx = document.getElementById('op-edit-preview-net-sx');
+  const opEditPreviewNetLater = document.getElementById('op-edit-preview-net-later');
+  const opEditPreviewFinalTotal = document.getElementById('op-edit-preview-final-total');
 
   const mriEntryForm = document.getElementById('mri-entry-form');
   const mriPatientName = document.getElementById('mri-patient-name');
@@ -281,37 +299,69 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ------------------------------------------------------------------------
      5C. Real-Time Calculation Previews for Operation (Officer: Qari Mustajab)
-     - 100% of the received payment belongs to Doctor.
-     - NO deduction and NO percentage.
+     - Net to Pay Sx Day = Received - Submitted - Admission - Assistant
+     - Net Pay Later     = HDU/ICU - Medicine
+     - Final Total       = Net to Pay Sx Day + Net Pay Later
+     - 100% Doctor Amount compatibility maintained
      ------------------------------------------------------------------------ */
   function updateOperationLiveCalculation() {
-    if (!opPaymentInput) return;
-    const paymentVal = Number(opPaymentInput.value) || 0;
-    const splits = CalculationEngine.calculateOperationShare(paymentVal);
+    const paymentVal = Number(opPaymentInput ? opPaymentInput.value : 0) || 0;
+    const optionalData = {
+      submittedPayment: Number(opSubmittedPayment ? opSubmittedPayment.value : 0) || 0,
+      admissionSlip: Number(opAdmissionSlip ? opAdmissionSlip.value : 0) || 0,
+      assistantFee: Number(opAssistantFee ? opAssistantFee.value : 0) || 0,
+      hduIcu: Number(opHduIcu ? opHduIcu.value : 0) || 0,
+      medicine: Number(opMedicine ? opMedicine.value : 0) || 0
+    };
+    const splits = CalculationEngine.calculateOperationShare(paymentVal, optionalData);
 
+    // Primary required display metrics
+    if (opLiveNetSx) opLiveNetSx.textContent = CalculationEngine.formatPKR(splits.netToPaySxDay);
+    if (opLiveNetLater) opLiveNetLater.textContent = CalculationEngine.formatPKR(splits.netPayLater);
+    if (opLiveFinalTotal) opLiveFinalTotal.textContent = CalculationEngine.formatPKR(splits.finalTotal);
+
+    // Retained compatibility elements
     if (opLivePayment) opLivePayment.textContent = CalculationEngine.formatPKR(splits.payment);
-    if (opLiveTotal) opLiveTotal.textContent = CalculationEngine.formatPKR(splits.operationTotal);
+    if (opLiveSubmitted) opLiveSubmitted.textContent = CalculationEngine.formatPKR(splits.submittedPayment);
+    if (opLiveTotal) opLiveTotal.textContent = CalculationEngine.formatPKR(splits.finalTotal);
     if (opLiveDoctor) opLiveDoctor.textContent = CalculationEngine.formatPKR(splits.doctorAmount);
   }
 
-  if (opPaymentInput) {
-    opPaymentInput.addEventListener('input', updateOperationLiveCalculation);
-    opPaymentInput.addEventListener('change', updateOperationLiveCalculation);
-  }
+  [opPaymentInput, opSubmittedPayment, opAdmissionSlip, opAssistantFee, opHduIcu, opMedicine].forEach(el => {
+    if (el) {
+      el.addEventListener('input', updateOperationLiveCalculation);
+      el.addEventListener('change', updateOperationLiveCalculation);
+    }
+  });
 
   function updateOperationEditLiveCalculation() {
-    if (!opEditPaymentInput) return;
-    const paymentVal = Number(opEditPaymentInput.value) || 0;
-    const splits = CalculationEngine.calculateOperationShare(paymentVal);
+    const paymentVal = Number(opEditPaymentInput ? opEditPaymentInput.value : 0) || 0;
+    const optionalData = {
+      submittedPayment: Number(opEditSubmittedPayment ? opEditSubmittedPayment.value : 0) || 0,
+      admissionSlip: Number(opEditAdmissionSlip ? opEditAdmissionSlip.value : 0) || 0,
+      assistantFee: Number(opEditAssistantFee ? opEditAssistantFee.value : 0) || 0,
+      hduIcu: Number(opEditHduIcu ? opEditHduIcu.value : 0) || 0,
+      medicine: Number(opEditMedicine ? opEditMedicine.value : 0) || 0
+    };
+    const splits = CalculationEngine.calculateOperationShare(paymentVal, optionalData);
 
-    if (opEditPreviewTotal) opEditPreviewTotal.textContent = CalculationEngine.formatPKR(splits.operationTotal);
+    // Primary required display metrics
+    if (opEditPreviewNetSx) opEditPreviewNetSx.textContent = CalculationEngine.formatPKR(splits.netToPaySxDay);
+    if (opEditPreviewNetLater) opEditPreviewNetLater.textContent = CalculationEngine.formatPKR(splits.netPayLater);
+    if (opEditPreviewFinalTotal) opEditPreviewFinalTotal.textContent = CalculationEngine.formatPKR(splits.finalTotal);
+
+    // Retained compatibility elements
+    if (opEditPreviewTotal) opEditPreviewTotal.textContent = CalculationEngine.formatPKR(splits.payment);
+    if (opEditPreviewSubmitted) opEditPreviewSubmitted.textContent = CalculationEngine.formatPKR(splits.submittedPayment);
     if (opEditPreviewDoctor) opEditPreviewDoctor.textContent = CalculationEngine.formatPKR(splits.doctorAmount);
   }
 
-  if (opEditPaymentInput) {
-    opEditPaymentInput.addEventListener('input', updateOperationEditLiveCalculation);
-    opEditPaymentInput.addEventListener('change', updateOperationEditLiveCalculation);
-  }
+  [opEditPaymentInput, opEditSubmittedPayment, opEditAdmissionSlip, opEditAssistantFee, opEditHduIcu, opEditMedicine].forEach(el => {
+    if (el) {
+      el.addEventListener('input', updateOperationEditLiveCalculation);
+      el.addEventListener('change', updateOperationEditLiveCalculation);
+    }
+  });
 
   /* ------------------------------------------------------------------------
      6. Dashboard Refresh Logic (Doctor vs MRI vs Investigation vs Operation)
@@ -627,8 +677,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     headRow.innerHTML = `
       <th data-i18n="col_patient_name">${LanguageManager.t('col_patient_name')}</th>
-      <th data-i18n="col_operation_name">${LanguageManager.t('col_operation_name')}</th>
-      <th data-i18n="col_payment">${LanguageManager.t('col_payment')}</th>
+      <th data-i18n="col_operation_type">${LanguageManager.t('col_operation_type')}</th>
+      <th data-i18n="col_received">${LanguageManager.t('col_received')}</th>
+      <th data-i18n="col_net_sx_day">${LanguageManager.t('col_net_sx_day')}</th>
+      <th data-i18n="col_net_pay_later">${LanguageManager.t('col_net_pay_later')}</th>
+      <th data-i18n="col_final_total">${LanguageManager.t('col_final_total')}</th>
       <th data-i18n="col_date">${LanguageManager.t('col_date')}</th>
       <th data-i18n="col_day">${LanguageManager.t('col_day')}</th>
       <th data-i18n="col_actions">${LanguageManager.t('col_actions')}</th>
@@ -776,7 +829,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const payment = Number(opPaymentInput.value);
       const date = opDateInput.value || CalculationEngine.getTodayDateString();
 
-      // Validation
+      // Optional fields: if empty, default to 0
+      const submittedPayment = Math.max(0, Number(opSubmittedPayment ? opSubmittedPayment.value : 0) || 0);
+      const admissionSlip = Math.max(0, Number(opAdmissionSlip ? opAdmissionSlip.value : 0) || 0);
+      const assistantFee = Math.max(0, Number(opAssistantFee ? opAssistantFee.value : 0) || 0);
+      const hduIcu = Math.max(0, Number(opHduIcu ? opHduIcu.value : 0) || 0);
+      const medicine = Math.max(0, Number(opMedicine ? opMedicine.value : 0) || 0);
+
+      // Validation strictly on the 3 required fields
       if (!patientName || patientName.length < 2) {
         UI.Toast.error(LanguageManager.t('toast_fill_required'));
         opPatientName.focus();
@@ -799,7 +859,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         await ClinicRepository.addOperationRecord({
           patientName,
           operationName,
+          operationType: operationName,
           payment,
+          receivedPayment: payment,
+          submittedPayment,
+          admissionSlip,
+          assistantFee,
+          assistant: assistantFee,
+          hduIcu,
+          medicine,
           date
         });
 
@@ -809,6 +877,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         opPatientName.value = '';
         opOperationNameInput.value = '';
         opPaymentInput.value = '';
+        if (opSubmittedPayment) opSubmittedPayment.value = '';
+        if (opAdmissionSlip) opAdmissionSlip.value = '';
+        if (opAssistantFee) opAssistantFee.value = '';
+        if (opHduIcu) opHduIcu.value = '';
+        if (opMedicine) opMedicine.value = '';
         syncDateAndDay(opDateInput, opDayInput);
         updateOperationLiveCalculation();
 
@@ -851,9 +924,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (record) {
           opEditId.value = record.id;
           opEditPatientName.value = record.patientName;
-          opEditOperationNameInput.value = record.operationName;
-          opEditPaymentInput.value = record.payment;
+          opEditOperationNameInput.value = record.operationType || record.operationName;
+          opEditPaymentInput.value = record.payment || record.receivedPayment;
           opEditDateInput.value = record.date;
+          if (opEditSubmittedPayment) opEditSubmittedPayment.value = record.submittedPayment || '';
+          if (opEditAdmissionSlip) opEditAdmissionSlip.value = record.admissionSlip || '';
+          if (opEditAssistantFee) opEditAssistantFee.value = record.assistantFee || record.assistant || '';
+          if (opEditHduIcu) opEditHduIcu.value = record.hduIcu || '';
+          if (opEditMedicine) opEditMedicine.value = record.medicine || '';
           syncDateAndDay(opEditDateInput, opEditDayInput);
           updateOperationEditLiveCalculation();
           UI.Modal.open('op-edit-modal');
@@ -1090,6 +1168,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const payment = Number(opEditPaymentInput.value);
       const date = opEditDateInput.value;
 
+      // Optional fields: if empty, default to 0
+      const submittedPayment = Math.max(0, Number(opEditSubmittedPayment ? opEditSubmittedPayment.value : 0) || 0);
+      const admissionSlip = Math.max(0, Number(opEditAdmissionSlip ? opEditAdmissionSlip.value : 0) || 0);
+      const assistantFee = Math.max(0, Number(opEditAssistantFee ? opEditAssistantFee.value : 0) || 0);
+      const hduIcu = Math.max(0, Number(opEditHduIcu ? opEditHduIcu.value : 0) || 0);
+      const medicine = Math.max(0, Number(opEditMedicine ? opEditMedicine.value : 0) || 0);
+
       if (!patientName || !operationName) {
         UI.Toast.error(LanguageManager.t('toast_fill_required'));
         return;
@@ -1104,7 +1189,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         await ClinicRepository.updateOperationRecord(id, {
           patientName,
           operationName,
+          operationType: operationName,
           payment,
+          receivedPayment: payment,
+          submittedPayment,
+          admissionSlip,
+          assistantFee,
+          assistant: assistantFee,
+          hduIcu,
+          medicine,
           date
         });
 
@@ -1321,9 +1414,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       } else if (activeOffice === 'operation') {
         const records = await ClinicRepository.getOperationRecords();
-        csvContent += "ID,Patient Name,Operation Name,Payment,Doctor Amount,Date,Day\n";
+        csvContent += "ID,Patient Name,Operation Type,Received Payment,Submitted Payment,Net to Pay Sx Day,Net Pay Later,Final Total,Doctor Amount,Date,Day\n";
         records.forEach(r => {
-          csvContent += `"${r.id}","${r.patientName}","${r.operationName}",${r.payment},${r.doctorAmount},"${r.date}","${r.day}"\n`;
+          const c = CalculationEngine.calculateOperationShare(r.payment || r.receivedPayment, r);
+          csvContent += `"${r.id}","${r.patientName}","${r.operationType || r.operationName}",${c.receivedPayment},${c.submittedPayment},${c.netToPaySxDay},${c.netPayLater},${c.finalTotal},${c.doctorAmount},"${r.date}","${r.day}"\n`;
         });
       } else {
         const transactions = await ClinicRepository.getTransactions(activeOffice);
@@ -1449,9 +1543,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (record) {
             opEditId.value = record.id;
             opEditPatientName.value = record.patientName;
-            opEditOperationNameInput.value = record.operationName;
-            opEditPaymentInput.value = record.payment;
+            opEditOperationNameInput.value = record.operationType || record.operationName;
+            opEditPaymentInput.value = record.payment || record.receivedPayment;
             opEditDateInput.value = record.date;
+            if (opEditSubmittedPayment) opEditSubmittedPayment.value = record.submittedPayment || '';
+            if (opEditAdmissionSlip) opEditAdmissionSlip.value = record.admissionSlip || '';
+            if (opEditAssistantFee) opEditAssistantFee.value = record.assistantFee || record.assistant || '';
+            if (opEditHduIcu) opEditHduIcu.value = record.hduIcu || '';
+            if (opEditMedicine) opEditMedicine.value = record.medicine || '';
             syncDateAndDay(opEditDateInput, opEditDayInput);
             updateOperationEditLiveCalculation();
             UI.Modal.open('op-edit-modal');
@@ -1517,9 +1616,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         csvContent += `"${r.id}","${r.patientName}","${r.testName}",${r.payment},${r.doctorAmount},"${r.date}","${r.day}"\n`;
       });
     } else {
-      csvContent += "ID,Patient Name,Operation Name,Payment,Doctor Amount,Date,Day\n";
+      csvContent += "ID,Patient Name,Operation Type,Received Payment,Submitted Payment,Admission / Slip,Assistant,HDU / ICU,Medicine,Net to Pay Sx Day,Net Pay Later,Final Total,Doctor Amount,Date,Day\n";
       records.forEach(r => {
-        csvContent += `"${r.id}","${r.patientName}","${r.operationName}",${r.payment},${r.doctorAmount},"${r.date}","${r.day}"\n`;
+        const c = CalculationEngine.calculateOperationShare(r.payment || r.receivedPayment, r);
+        csvContent += `"${r.id}","${r.patientName}","${r.operationType || r.operationName}",${c.receivedPayment},${c.submittedPayment},${c.admissionSlip},${c.assistantFee},${c.hduIcu},${c.medicine},${c.netToPaySxDay},${c.netPayLater},${c.finalTotal},${c.doctorAmount},"${r.date}","${r.day}"\n`;
       });
     }
 

@@ -1170,6 +1170,30 @@
   flex-wrap: wrap;
 }
 
+.op-optional-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0 0.85rem 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.op-optional-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-light);
+}
+
+.op-optional-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  align-items: flex-end;
+}
+
 @media (max-width: 1024px) {
   .op-form-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1177,10 +1201,16 @@
   .op-form-grid .form-group:last-child {
     grid-column: 1 / -1;
   }
+  .op-optional-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (max-width: 639px) {
   .op-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .op-optional-grid {
     grid-template-columns: 1fr;
   }
   .op-live-calc-bar {

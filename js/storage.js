@@ -194,8 +194,12 @@ const ClinicRepository = (function () {
     if (!filters) return all;
     let filtered = all;
     if (filters.search) {
-      const q = filters.search.toLowerCase();
-      filtered = filtered.filter(r => (r.patientName && r.patientName.toLowerCase().includes(q)) || (r.operationName && r.operationName.toLowerCase().includes(q)));
+      const q = filters.search.toLowerCase().trim();
+      filtered = filtered.filter(r => 
+        (r.patientName && r.patientName.toLowerCase().includes(q)) || 
+        (r.operationType && r.operationType.toLowerCase().includes(q)) ||
+        (r.operationName && r.operationName.toLowerCase().includes(q))
+      );
     }
     if (filters.dateRange && filters.dateRange !== 'all') {
       filtered = CalculationEngine.filterRecordsByDateRange(filtered, filters.dateRange);
@@ -204,6 +208,11 @@ const ClinicRepository = (function () {
   }
 
   async function getOperationRecordById(id) {
+    if (OperationService.getLocalRecords) {
+      const local = OperationService.getLocalRecords();
+      const match = local.find(r => String(r.id) === String(id));
+      if (match) return match;
+    }
     const records = await OperationService.getAll();
     return records.find(r => String(r.id) === String(id)) || null;
   }

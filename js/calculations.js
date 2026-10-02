@@ -45,17 +45,25 @@ const CalculationEngine = (function () {
   }
 
   /**
-   * Formats numeric amounts into Pakistani Rupee (₨) currency format
+   * Formats numeric amounts into Pakistani Rupee (₨) currency format.
+   * Gracefully handles negative numbers, NaN, null, and undefined values.
    */
   function formatPKR(amount) {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      amount = 0;
+    }
     const num = Number(amount) || 0;
+    const isNegative = num < 0;
     const formattedNum = new Intl.NumberFormat('en-PK', {
       maximumFractionDigits: 0
-    }).format(num);
+    }).format(Math.abs(num));
 
     // Provide localized presentation based on active language direction
     const isUrdu = (typeof LanguageManager !== 'undefined' && LanguageManager.isRTL());
-    return isUrdu ? `${formattedNum} ₨` : `₨ ${formattedNum}`;
+    if (isUrdu) {
+      return isNegative ? `-${formattedNum} ₨` : `${formattedNum} ₨`;
+    }
+    return isNegative ? `-₨ ${formattedNum}` : `₨ ${formattedNum}`;
   }
 
   /**
@@ -151,15 +159,44 @@ const CalculationEngine = (function () {
   }
 
   /**
-   * Calculates Operation Payment split:
-   * 100% of the received Operation payment belongs to Doctor.
-   * There is NO deduction and NO percentage.
-   * Example: Payment = Rs. 50,000 -> Operation Total = Rs. 50,000, Doctor Amount = Rs. 50,000, Office = Rs. 0
+   * Calculates Operation Payment split & final calculation rules:
+   * Required: paymentReceived (Received Payment)
+   * Optional: submittedPayment, admissionSlip, assistantFee, hduIcu, medicine (all default to 0 if empty)
+   *
+   * EXACT FORMULAS:
+   * 1. Net to Pay Sx Day = Received Payment - Submitted Payment - Admission / Slip - Assistant
+   * 2. Net Pay Later     = HDU / ICU - Medicine
+   * 3. Final Total       = Net to Pay Sx Day + Net Pay Later
    */
-  function calculateOperationShare(paymentReceived) {
-    const payment = Math.max(0, Number(paymentReceived) || 0);
+  function calculateOperationShare(paymentReceived, optionalData = {}) {
+    const payment = Math.max(0, Number(paymentReceived ?? optionalData.receivedPayment ?? optionalData.payment_amount ?? optionalData.payment) || 0);
+    const submittedPayment = Math.max(0, Number(optionalData.submittedPayment ?? optionalData.submitted_payment) || 0);
+    const admissionSlip = Math.max(0, Number(optionalData.admissionSlip ?? optionalData.admission_slip) || 0);
+    const assistantFee = Math.max(0, Number(optionalData.assistantFee ?? optionalData.assistant ?? optionalData.assistant_fee) || 0);
+    const hduIcu = Math.max(0, Number(optionalData.hduIcu ?? optionalData.hdu_icu) || 0);
+    const medicine = Math.max(0, Number(optionalData.medicine ?? optionalData.medicine_expense ?? optionalData.medicineExpense) || 0);
+
+    // 1. Net to Pay Sx Day
+    const netToPaySxDay = payment - submittedPayment - admissionSlip - assistantFee;
+
+    // 2. Net Pay Later
+    const netPayLater = hduIcu - medicine;
+
+    // 3. Final Total
+    const finalTotal = netToPaySxDay + netPayLater;
+
     return {
       payment,
+      receivedPayment: payment,
+      submittedPayment,
+      admissionSlip,
+      assistantFee,
+      assistant: assistantFee,
+      hduIcu,
+      medicine,
+      netToPaySxDay,
+      netPayLater,
+      finalTotal,
       operationTotal: payment,
       doctorAmount: payment,
       officeShare: 0
@@ -250,15 +287,33 @@ const CalculationEngine = (function () {
   }
 
   /**
-   * Calculates Operation summary KPI metrics from records (100% Doctor)
+   * Calculates Operation summary KPI metrics from records
+   * Computes totals for Net to Pay Sx Day, Net Pay Later, and Final Total
    */
   function calculateOperationSummaryMetrics(records) {
     if (!Array.isArray(records)) records = [];
     const today = getTodayDateString();
     const todayRecords = records.filter(r => (r.date ? r.date === today : (r.createdAt && r.createdAt.startsWith(today))));
-    const todayTotal = todayRecords.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
+    const todayTotal = todayRecords.reduce((sum, r) => sum + (Number(r.payment || r.receivedPayment) || 0), 0);
+    const todaySubmitted = todayRecords.reduce((sum, r) => sum + (Number(r.submittedPayment) || 0), 0);
+
+    let todayNetSxDay = 0;
+    let todayNetPayLater = 0;
+    let todayFinalTotal = 0;
+
+    todayRecords.forEach(r => {
+      const calc = calculateOperationShare(r.payment || r.receivedPayment, r);
+      todayNetSxDay += calc.netToPaySxDay;
+      todayNetPayLater += calc.netPayLater;
+      todayFinalTotal += calc.finalTotal;
+    });
+
     return {
       todayTotalReceived: todayTotal,
+      todaySubmittedPayment: todaySubmitted,
+      todayNetSxDay,
+      todayNetPayLater,
+      todayFinalTotal,
       todayEntriesCount: todayRecords.length,
       todayDoctorAmount: todayTotal
     };

@@ -53,6 +53,7 @@ button,
   .app-main {
     margin-inline-start: 0;
     width: 100%;
+    max-width: 100%;
   }
 
   .menu-toggle-btn {
@@ -189,6 +190,31 @@ button,
 
   .app-main {
     margin-inline-start: var(--sidebar-width);
+    max-width: calc(100% - var(--sidebar-width));
+    min-width: 0;
+  }
+
+  .app-header {
+    padding: 0 1rem;
+  }
+
+  .header-actions {
+    gap: 0.5rem;
+  }
+
+  .header-actions .btn-primary span.btn-text,
+  .header-actions .btn-secondary span.btn-text,
+  .header-officer-assigned {
+    display: none;
+  }
+
+  .supabase-status-pill #supabase-status-text {
+    display: none;
+  }
+
+  .supabase-status-pill::after {
+    content: "DB";
+    font-size: 0.75rem;
   }
 
   .menu-toggle-btn {
