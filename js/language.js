@@ -263,9 +263,12 @@ const LanguageManager = (function () {
 
       // Tab Summaries & KPI Titles
       doc_summary_total_received: "Total Received",
-      doc_summary_mri_share: "MRI Office Share",
+      doc_summary_mri_share: "MRI Machine Exp",
+      doc_summary_mri_profit: "MRI Profit",
       doc_summary_doctor_amount: "Doctor Amount",
       doc_summary_entries_count: "Number of Entries",
+      col_mri_machine_exp: "MRI Machine Exp",
+      col_mri_profit: "MRI Profit",
 
       // Doctor Tab Table Headers & Titles
       doc_mri_records_title: "MRI Department Records",
@@ -587,9 +590,12 @@ const LanguageManager = (function () {
 
       // Tab Summaries & KPI Titles
       doc_summary_total_received: "کل موصولی",
-      doc_summary_mri_share: "ایم آر آئی دفتر کا حصہ",
+      doc_summary_mri_share: "ایم آر آئی مشین خرچہ",
+      doc_summary_mri_profit: "ایم آر آئی منافع",
       doc_summary_doctor_amount: "ڈاکٹر کی رقم",
       doc_summary_entries_count: "اندراجات کی تعداد",
+      col_mri_machine_exp: "ایم آر آئی مشین خرچہ",
+      col_mri_profit: "ایم آر آئی منافع",
 
       // Doctor Tab Table Headers & Titles
       doc_mri_records_title: "ایم آر آئی شعبہ کے ریکارڈز",

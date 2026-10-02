@@ -742,7 +742,7 @@ const UI = (function () {
 
         <article class="kpi-card accent-red">
           <div class="kpi-header">
-            <span class="kpi-title" data-i18n="doc_summary_doctor_amount">${LanguageManager.t('doc_summary_doctor_amount')}</span>
+            <span class="kpi-title" data-i18n="doc_summary_mri_profit">${LanguageManager.t('doc_summary_mri_profit')}</span>
             <div class="kpi-icon-wrap">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
@@ -863,8 +863,8 @@ const UI = (function () {
           <th data-i18n="col_patient_name">${LanguageManager.t('col_patient_name')}</th>
           <th data-i18n="col_mri_type">${LanguageManager.t('col_mri_type')}</th>
           <th data-i18n="col_payment">${LanguageManager.t('col_payment')}</th>
-          <th data-i18n="col_office_share">${LanguageManager.t('col_office_share')}</th>
-          <th data-i18n="col_doctor_amount">${LanguageManager.t('col_doctor_amount')}</th>
+          <th data-i18n="col_mri_machine_exp">${LanguageManager.t('col_mri_machine_exp')}</th>
+          <th data-i18n="col_mri_profit">${LanguageManager.t('col_mri_profit')}</th>
           <th data-i18n="col_date">${LanguageManager.t('col_date')}</th>
           <th data-i18n="col_day">${LanguageManager.t('col_day')}</th>
           <th data-i18n="col_actions">${LanguageManager.t('col_actions')}</th>

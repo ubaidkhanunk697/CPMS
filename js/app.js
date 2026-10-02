@@ -1606,7 +1606,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let csvContent = "data:text/csv;charset=utf-8,";
 
     if (doctorActiveTab === 'mri') {
-      csvContent += "ID,Patient Name,MRI Type,Payment,MRI Office Share,Doctor Amount,Date,Day\n";
+      csvContent += "ID,Patient Name,MRI Type,Payment,MRI Machine Exp,MRI Profit,Date,Day\n";
       records.forEach(r => {
         csvContent += `"${r.id}","${r.patientName}","${r.mriType}",${r.payment},${r.officeShare},${r.doctorAmount},"${r.date}","${r.day}"\n`;
       });
