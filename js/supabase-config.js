@@ -18,6 +18,15 @@ const SupabaseConfig = (function () {
     anonKey: 'sb_publishable_RVArrib6NKQMARKEYWpnSQ_yA6Cf42w'
   };
 
+  // Sync active configuration to project credentials
+  try {
+    const currentUrl = localStorage.getItem(STORAGE_KEY_URL);
+    if (!currentUrl || currentUrl !== DEFAULT_CONFIG.url) {
+      localStorage.setItem(STORAGE_KEY_URL, DEFAULT_CONFIG.url);
+      localStorage.setItem(STORAGE_KEY_KEY, DEFAULT_CONFIG.anonKey);
+    }
+  } catch (_) {}
+
   function getUrl() {
     return localStorage.getItem(STORAGE_KEY_URL) || DEFAULT_CONFIG.url || '';
   }
