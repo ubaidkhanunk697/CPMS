@@ -62,10 +62,81 @@ const OperationService = (function () {
   }
 
   function saveLocalRecords(records) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    } catch (e) {
+      console.warn("[OperationService] Failed to save to localStorage:", e);
+    }
+  }
+
+  async function syncPendingRecordsToSupabase(pending) {
+    if (!SupabaseClient.isReady() || !Array.isArray(pending) || pending.length === 0) return;
+    try {
+      const client = SupabaseClient.getClient();
+      const { data: sessionData } = await client.auth.getSession();
+      if (!sessionData?.session?.user) return;
+
+      for (const rec of pending) {
+        if (!rec.id || !String(rec.id).startsWith('OP-')) continue;
+        const opType = (rec.operationType || rec.operationName || 'Surgical Procedure').trim();
+        const basePayload = {
+          patient_name: rec.patientName,
+          operation_name: opType,
+          payment_amount: Number(rec.payment || rec.receivedPayment || 0),
+          date: rec.date || CalculationEngine.getTodayDateString(),
+          day: rec.day || CalculationEngine.getDayNameFromDate(rec.date, false),
+          created_by: sessionData.session.user.id
+        };
+        const extendedPayload = {
+          ...basePayload,
+          operation_type: opType,
+          submitted_payment: Number(rec.submittedPayment || 0),
+          admission_slip: Number(rec.admissionSlip || 0),
+          assistant_fee: Number(rec.assistantFee ?? rec.assistant ?? 0),
+          hdu_icu: Number(rec.hduIcu || 0),
+          medicine: Number(rec.medicine || 0)
+        };
+
+        let res = await client
+          .from('operation_payments')
+          .insert([extendedPayload])
+          .select()
+          .single();
+
+        if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column'))) {
+          res = await client
+            .from('operation_payments')
+            .insert([basePayload])
+            .select()
+            .single();
+        }
+
+        if (!res.error && res.data) {
+          const mapped = mapRowToModel(res.data);
+          mapped.operationType = opType;
+          mapped.submittedPayment = rec.submittedPayment;
+          mapped.admissionSlip = rec.admissionSlip;
+          mapped.assistantFee = rec.assistantFee;
+          mapped.assistant = rec.assistant;
+          mapped.hduIcu = rec.hduIcu;
+          mapped.medicine = rec.medicine;
+          const c = CalculationEngine.calculateOperationShare(mapped.payment, mapped);
+          mapped.netToPaySxDay = c.netToPaySxDay;
+          mapped.netPayLater = c.netPayLater;
+          mapped.finalTotal = c.finalTotal;
+
+          const current = getLocalRecords();
+          const updated = current.map(r => String(r.id) === String(rec.id) ? mapped : r);
+          saveLocalRecords(updated);
+        }
+      }
+    } catch (_) {}
   }
 
   async function getAll() {
+    const localRecords = getLocalRecords();
+    const localMap = new Map(localRecords.map(r => [String(r.id), r]));
+
     if (SupabaseClient.isReady()) {
       try {
         const client = SupabaseClient.getClient();
@@ -76,45 +147,59 @@ const OperationService = (function () {
           .order('created_at', { ascending: false });
 
         if (!error && Array.isArray(data)) {
-          // Merge with any local extended fields if present
-          const localMap = new Map(getLocalRecords().map(r => [r.id, r]));
-          const mapped = data.map(row => {
-            const m = mapRowToModel(row);
-            const local = localMap.get(m.id);
-            if (local) {
-              m.operationType = (row.operation_type !== undefined && row.operation_type !== null)
-                ? row.operation_type
-                : (local.operationType || m.operationType);
+          if (data.length > 0) {
+            const remoteMapped = data.map(row => {
+              const m = mapRowToModel(row);
+              const local = localMap.get(String(m.id));
+              if (local) {
+                m.operationType = (row.operation_type !== undefined && row.operation_type !== null)
+                  ? row.operation_type
+                  : (local.operationType || m.operationType);
 
-              m.submittedPayment = (row.submitted_payment !== undefined && row.submitted_payment !== null)
-                ? Number(row.submitted_payment)
-                : Number(local.submittedPayment || 0);
+                m.submittedPayment = (row.submitted_payment !== undefined && row.submitted_payment !== null)
+                  ? Number(row.submitted_payment)
+                  : Number(local.submittedPayment || 0);
 
-              m.admissionSlip = (row.admission_slip !== undefined && row.admission_slip !== null)
-                ? Number(row.admission_slip)
-                : Number(local.admissionSlip || 0);
+                m.admissionSlip = (row.admission_slip !== undefined && row.admission_slip !== null)
+                  ? Number(row.admission_slip)
+                  : Number(local.admissionSlip || 0);
 
-              m.assistantFee = (row.assistant_fee !== undefined && row.assistant_fee !== null)
-                ? Number(row.assistant_fee)
-                : Number(local.assistantFee ?? local.assistant ?? 0);
-              m.assistant = m.assistantFee;
+                m.assistantFee = (row.assistant_fee !== undefined && row.assistant_fee !== null)
+                  ? Number(row.assistant_fee)
+                  : Number(local.assistantFee ?? local.assistant ?? 0);
+                m.assistant = m.assistantFee;
 
-              m.hduIcu = (row.hdu_icu !== undefined && row.hdu_icu !== null)
-                ? Number(row.hdu_icu)
-                : Number(local.hduIcu || 0);
+                m.hduIcu = (row.hdu_icu !== undefined && row.hdu_icu !== null)
+                  ? Number(row.hdu_icu)
+                  : Number(local.hduIcu || 0);
 
-              m.medicine = (row.medicine !== undefined && row.medicine !== null)
-                ? Number(row.medicine)
-                : Number(local.medicine || 0);
+                m.medicine = (row.medicine !== undefined && row.medicine !== null)
+                  ? Number(row.medicine)
+                  : Number(local.medicine || 0);
+              }
+              const c = CalculationEngine.calculateOperationShare(m.payment, m);
+              m.netToPaySxDay = c.netToPaySxDay;
+              m.netPayLater = c.netPayLater;
+              m.finalTotal = c.finalTotal;
+              return m;
+            });
+
+            const remoteIdSet = new Set(remoteMapped.map(r => String(r.id)));
+            const localOnly = localRecords.filter(r => !remoteIdSet.has(String(r.id)));
+            const merged = [...remoteMapped, ...localOnly];
+            merged.sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
+
+            saveLocalRecords(merged);
+
+            if (localOnly.length > 0) {
+              syncPendingRecordsToSupabase(localOnly);
             }
-            const c = CalculationEngine.calculateOperationShare(m.payment, m);
-            m.netToPaySxDay = c.netToPaySxDay;
-            m.netPayLater = c.netPayLater;
-            m.finalTotal = c.finalTotal;
-            return m;
-          });
-          saveLocalRecords(mapped);
-          return mapped;
+            return merged;
+          } else {
+            // Supabase returned empty array (could be due to RLS, anon session, or empty table).
+            // Retain and return local records so data is never lost or wiped.
+            return localRecords;
+          }
         } else if (error) {
           console.warn("[OperationService] Supabase query error, using local cache:", error);
         }
@@ -122,7 +207,7 @@ const OperationService = (function () {
         console.warn("[OperationService] Supabase network error, using local cache:", err);
       }
     }
-    return getLocalRecords();
+    return localRecords;
   }
 
   async function getFiltered(dateFilter = 'today') {
@@ -187,10 +272,7 @@ const OperationService = (function () {
 
         if (res.error) {
           console.warn("[OperationService] Supabase insert warning:", res.error);
-          throw new Error(SupabaseClient.formatErrorMessage(res.error));
-        }
-
-        if (res.data) {
+        } else if (res.data) {
           const mapped = mapRowToModel(res.data);
           // Preserve all optional fields in local storage record
           mapped.operationType = opType;
@@ -207,8 +289,9 @@ const OperationService = (function () {
           mapped.finalTotal = c.finalTotal;
 
           const current = getLocalRecords();
-          current.unshift(mapped);
-          saveLocalRecords(current);
+          const filtered = current.filter(r => String(r.id) !== String(mapped.id));
+          filtered.unshift(mapped);
+          saveLocalRecords(filtered);
           return { data: mapped, error: null };
         }
       } catch (err) {

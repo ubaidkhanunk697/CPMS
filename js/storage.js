@@ -362,6 +362,37 @@ const ClinicRepository = (function () {
     const records = JSON.parse(localStorage.getItem(STORAGE_KEY_TRANSACTIONS)) || [];
     records.unshift(data);
     localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(records));
+
+    // Also forward to the designated office service if applicable
+    try {
+      const officeId = data.officeId;
+      const fee = Number(data.totalFee || data.paidAmount || 0);
+      if (officeId === 'mri') {
+        await addMRIRecord({
+          patientName: data.patientName,
+          mriType: data.service || 'Standard MRI',
+          payment: fee,
+          date: CalculationEngine.getTodayDateString()
+        });
+      } else if (officeId === 'investigation') {
+        await addInvestigationRecord({
+          patientName: data.patientName,
+          testName: data.service || 'Diagnostic Test',
+          payment: fee,
+          date: CalculationEngine.getTodayDateString()
+        });
+      } else if (officeId === 'operation') {
+        await addOperationRecord({
+          patientName: data.patientName,
+          operationName: data.service || 'Surgical Procedure',
+          payment: fee,
+          date: CalculationEngine.getTodayDateString()
+        });
+      }
+    } catch (e) {
+      console.warn("[ClinicRepository] Error forwarding payment modal to office service:", e);
+    }
+
     return data;
   }
 

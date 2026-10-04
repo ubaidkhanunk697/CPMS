@@ -37,10 +37,49 @@ const InvestigationService = (function () {
   }
 
   function saveLocalRecords(records) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    } catch (e) {
+      console.warn("[InvestigationService] Failed to save to localStorage:", e);
+    }
+  }
+
+  async function syncPendingRecordsToSupabase(pending) {
+    if (!SupabaseClient.isReady() || !Array.isArray(pending) || pending.length === 0) return;
+    try {
+      const client = SupabaseClient.getClient();
+      const { data: sessionData } = await client.auth.getSession();
+      if (!sessionData?.session?.user) return;
+
+      for (const rec of pending) {
+        if (!rec.id || !String(rec.id).startsWith('INV-')) continue;
+        const payload = {
+          patient_name: rec.patientName,
+          test_name: rec.testName,
+          payment_amount: Number(rec.payment || 0),
+          date: rec.date || CalculationEngine.getTodayDateString(),
+          day: rec.day || CalculationEngine.getDayNameFromDate(rec.date, false),
+          created_by: sessionData.session.user.id
+        };
+        const { data: inserted, error } = await client
+          .from('investigation_payments')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (!error && inserted) {
+          const mapped = mapRowToModel(inserted);
+          const current = getLocalRecords();
+          const updated = current.map(r => String(r.id) === String(rec.id) ? mapped : r);
+          saveLocalRecords(updated);
+        }
+      }
+    } catch (_) {}
   }
 
   async function getAll() {
+    const local = getLocalRecords();
+
     if (SupabaseClient.isReady()) {
       try {
         const client = SupabaseClient.getClient();
@@ -51,9 +90,23 @@ const InvestigationService = (function () {
           .order('created_at', { ascending: false });
 
         if (!error && Array.isArray(data)) {
-          const mapped = data.map(mapRowToModel);
-          saveLocalRecords(mapped);
-          return mapped;
+          if (data.length > 0) {
+            const remoteMapped = data.map(mapRowToModel);
+            const remoteIds = new Set(remoteMapped.map(r => String(r.id)));
+            const localOnly = local.filter(r => !remoteIds.has(String(r.id)));
+            const merged = [...remoteMapped, ...localOnly];
+            merged.sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
+            saveLocalRecords(merged);
+
+            if (localOnly.length > 0) {
+              syncPendingRecordsToSupabase(localOnly);
+            }
+            return merged;
+          } else {
+            // Supabase returned empty array (could be due to RLS, anon session, or empty table).
+            // Retain and return local records so data is never lost or wiped.
+            return local;
+          }
         } else if (error) {
           console.warn("[InvestigationService] Supabase query error, using local cache:", error);
         }
@@ -61,7 +114,7 @@ const InvestigationService = (function () {
         console.warn("[InvestigationService] Supabase network error, using local cache:", err);
       }
     }
-    return getLocalRecords();
+    return local;
   }
 
   async function getFiltered(dateFilter = 'today') {
@@ -101,13 +154,12 @@ const InvestigationService = (function () {
 
         if (error) {
           console.warn("[InvestigationService] Supabase insert warning:", error);
-          throw new Error(SupabaseClient.formatErrorMessage(error));
-        }
-        if (data) {
+        } else if (data) {
           const mapped = mapRowToModel(data);
           const current = getLocalRecords();
-          current.unshift(mapped);
-          saveLocalRecords(current);
+          const filtered = current.filter(r => String(r.id) !== String(mapped.id));
+          filtered.unshift(mapped);
+          saveLocalRecords(filtered);
           return { data: mapped, error: null };
         }
       } catch (err) {
