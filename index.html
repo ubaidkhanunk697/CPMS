@@ -46,7 +46,7 @@
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <button type="button" id="btn-auth-supabase-status" class="supabase-status-pill compact" title="Supabase Database Settings">
+          <button type="button" id="btn-auth-supabase-status" class="supabase-status-pill compact" title="Supabase Database Settings" style="display: none !important;">
             <span class="status-dot"></span>
             <span class="sb-short-text">Supabase</span>
           </button>
@@ -278,7 +278,7 @@
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
           <!-- Supabase Connection Status Pill & Settings Trigger -->
-          <button type="button" id="btn-supabase-status" class="supabase-status-pill" title="Supabase Database Status & Configuration">
+          <button type="button" id="btn-supabase-status" class="supabase-status-pill" title="Supabase Database Status & Configuration" style="display: none !important;">
             <span class="status-dot"></span>
             <span id="supabase-status-text" data-i18n="supabase_status_unconfigured">Supabase Standby (Local Mode)</span>
           </button>

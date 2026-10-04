@@ -2003,7 +2003,7 @@ html[dir="rtl"] .role-pill-btn {
    ========================================================================== */
 
 .supabase-status-pill {
-  display: inline-flex;
+  display: none !important;
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.85rem;
