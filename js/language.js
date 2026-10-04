@@ -126,11 +126,13 @@ const LanguageManager = (function () {
       mri_calc_rule_hint: "Fixed Rule: Payment ≥ Rs. 3,000 → Office: Rs. 3,000 | Doctor: Balance",
       mri_office_share_fixed: "MRI Office Share",
       doctor_amount_cut: "Doctor Amount",
+      mri_profit: "MRI Profit",
 
       // MRI Dashboard Summary Cards
       kpi_today_total_received: "Today's Total Received",
       kpi_today_mri_entries: "Today's MRI Entries",
       kpi_mri_office_share: "MRI Office Share",
+      kpi_mri_profit: "MRI Profit",
       kpi_doctor_amount: "Doctor Amount",
 
       // MRI Payment History Table
@@ -139,6 +141,7 @@ const LanguageManager = (function () {
       col_mri_type: "MRI Type",
       col_payment: "Payment",
       col_office_share: "MRI Office Share",
+      col_mri_profit: "MRI Profit",
       col_doctor_amount: "Doctor Amount",
       col_date: "Date",
       col_day: "Day",
@@ -453,11 +456,13 @@ const LanguageManager = (function () {
       mri_calc_rule_hint: "طے شدہ اصول: ادائیگی ≥ 3,000 روپے → دفتر: 3,000 روپے | ڈاکٹر: بقیہ رقم",
       mri_office_share_fixed: "ایم آر آئی دفتر کا حصہ",
       doctor_amount_cut: "ڈاکٹر کی رقم",
+      mri_profit: "ایم آر آئی منافع",
 
       // MRI Dashboard Summary Cards
       kpi_today_total_received: "آج کی کل موصولی",
       kpi_today_mri_entries: "آج کے کل ایم آر آئی اندراجات",
       kpi_mri_office_share: "ایم آر آئی دفتر کا حصہ",
+      kpi_mri_profit: "ایم آر آئی منافع",
       kpi_doctor_amount: "ڈاکٹر کی رقم",
 
       // MRI Payment History Table
@@ -466,6 +471,7 @@ const LanguageManager = (function () {
       col_mri_type: "ایم آر آئی کی قسم",
       col_payment: "کل ادائیگی",
       col_office_share: "ایم آر آئی دفتر کا حصہ",
+      col_mri_profit: "ایم آر آئی منافع",
       col_doctor_amount: "ڈاکٹر کی رقم",
       col_date: "تاریخ",
       col_day: "دن",
