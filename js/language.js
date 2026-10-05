@@ -292,11 +292,11 @@ const LanguageManager = (function () {
       toast_pwa_installed: "Clinic Payment App installed successfully.",
 
       // Authentication & Access Control
-      login_title: "Clinic Staff Portal",
-      login_subtitle: "Sign in to access your designated clinic office",
+      login_title: "Glossary Portal",
+      login_subtitle: "Sign in to access your designated Glossery office",
       login_field_identity: "Email or Username",
       login_field_password: "Password",
-      login_placeholder_identity: "e.g. aqeb@clinic.local or doctor",
+      login_placeholder_identity: "Enter your Email",
       login_placeholder_password: "Enter your password",
       login_btn_submit: "Sign In",
       login_btn_signing_in: "Verifying...",
@@ -624,11 +624,11 @@ const LanguageManager = (function () {
       toast_pwa_installed: "کلینک ادائیگی ایپ کامیابی سے انسٹال ہو گئی۔",
 
       // Authentication & Access Control
-      login_title: "کلینک اسٹاف پورٹل",
-      login_subtitle: "اپنے مخصوص دفتر تک رسائی کے لیے لاگ ان کریں",
+      login_title: "Glossary Portal",
+      login_subtitle: "اپنے مخصوص Glossery دفتر تک رسائی کے لیے لاگ ان کریں",
       login_field_identity: "ای میل یا یوزر نام",
       login_field_password: "پاس ورڈ",
-      login_placeholder_identity: "مثلاً aqeb@clinic.local یا doctor",
+      login_placeholder_identity: "Enter your Email",
       login_placeholder_password: "اپنا پاس ورڈ درج کریں",
       login_btn_submit: "لاگ ان کریں",
       login_btn_signing_in: "توثیق جاری ہے...",
