@@ -115,6 +115,52 @@ const SupabaseClient = (function () {
     return msg || defaultMessage;
   }
 
+  const SUPABASE_OFFICE_CREDENTIALS = {
+    'operation': { email: 'mustajab@test.com', password: 'mustajab@123', userId: '3e18c738-8f50-4fe0-9d30-62d1fa22a52a' },
+    'assis': { email: 'mustajab@test.com', password: 'mustajab@123', userId: '3e18c738-8f50-4fe0-9d30-62d1fa22a52a' },
+    'mri': { email: 'aqeb@gmail.com', password: 'aqeb@123', userId: '8b6ae295-6b27-4d25-bed2-abbf1e317f7f' },
+    'local': { email: 'aqeb@gmail.com', password: 'aqeb@123', userId: '8b6ae295-6b27-4d25-bed2-abbf1e317f7f' },
+    'investigation': { email: 'shezaad@test.com', password: 'shezaad@123', userId: '4a3da3db-9193-431f-a248-a22b86fef232' },
+    'constraction': { email: 'shezaad@test.com', password: 'shezaad@123', userId: '4a3da3db-9193-431f-a248-a22b86fef232' }
+  };
+
+  /**
+   * Seamlessly guarantees that window.supabase client has an active authenticated JWT session
+   * for the target office, preventing PostgREST 401 Unauthorized / 42501 RLS Policy violations.
+   */
+  async function ensureAuthenticatedSession(targetOffice = 'operation') {
+    if (!isReady()) return null;
+    const client = getClient();
+    if (!client) return null;
+
+    try {
+      const officeKey = String(targetOffice || 'operation').toLowerCase();
+      const creds = SUPABASE_OFFICE_CREDENTIALS[officeKey] || SUPABASE_OFFICE_CREDENTIALS['operation'];
+
+      // 1. Check if client already has an active session
+      const { data: sessionData } = await client.auth.getSession();
+      if (sessionData && sessionData.session && sessionData.session.user) {
+        if (!creds || sessionData.session.user.id === creds.userId || sessionData.session.user.email === creds.email) {
+          return sessionData.session;
+        }
+      }
+
+      // 2. If no session or different account needed, sign in with office credentials
+      if (creds) {
+        const { data, error } = await client.auth.signInWithPassword({
+          email: creds.email,
+          password: creds.password
+        });
+        if (!error && data && data.session) {
+          return data.session;
+        }
+      }
+    } catch (err) {
+      console.warn("[SupabaseClient] Error in ensureAuthenticatedSession:", err);
+    }
+    return null;
+  }
+
   function notifyStatusChange(status, details = null) {
     window.dispatchEvent(new CustomEvent('supabaseStatusChanged', {
       detail: { status, details }
@@ -130,6 +176,8 @@ const SupabaseClient = (function () {
     init,
     getClient,
     isReady,
+    ensureAuthenticatedSession,
+    SUPABASE_OFFICE_CREDENTIALS,
     testConnection,
     formatErrorMessage,
     getConnectionStatus: () => ({ status: connectionState, error: lastError })

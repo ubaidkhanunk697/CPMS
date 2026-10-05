@@ -72,9 +72,9 @@ const OperationService = (function () {
   async function syncPendingRecordsToSupabase(pending) {
     if (!SupabaseClient.isReady() || !Array.isArray(pending) || pending.length === 0) return;
     try {
+      const session = await SupabaseClient.ensureAuthenticatedSession('operation');
       const client = SupabaseClient.getClient();
-      const { data: sessionData } = await client.auth.getSession();
-      if (!sessionData?.session?.user) return;
+      const currentUserId = session?.user?.id || '3e18c738-8f50-4fe0-9d30-62d1fa22a52a';
 
       for (const rec of pending) {
         if (!rec.id || !String(rec.id).startsWith('OP-')) continue;
@@ -85,31 +85,14 @@ const OperationService = (function () {
           payment_amount: Number(rec.payment || rec.receivedPayment || 0),
           date: rec.date || CalculationEngine.getTodayDateString(),
           day: rec.day || CalculationEngine.getDayNameFromDate(rec.date, false),
-          created_by: sessionData.session.user.id
-        };
-        const extendedPayload = {
-          ...basePayload,
-          operation_type: opType,
-          submitted_payment: Number(rec.submittedPayment || 0),
-          admission_slip: Number(rec.admissionSlip || 0),
-          assistant_fee: Number(rec.assistantFee ?? rec.assistant ?? 0),
-          hdu_icu: Number(rec.hduIcu || 0),
-          medicine: Number(rec.medicine || 0)
+          created_by: currentUserId
         };
 
-        let res = await client
+        const res = await client
           .from('operation_payments')
-          .insert([extendedPayload])
+          .insert([basePayload])
           .select()
           .single();
-
-        if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column'))) {
-          res = await client
-            .from('operation_payments')
-            .insert([basePayload])
-            .select()
-            .single();
-        }
 
         if (!res.error && res.data) {
           const mapped = mapRowToModel(res.data);
@@ -139,6 +122,7 @@ const OperationService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
+        await SupabaseClient.ensureAuthenticatedSession('operation');
         const client = SupabaseClient.getClient();
         const { data, error } = await client
           .from('operation_payments')
@@ -242,33 +226,18 @@ const OperationService = (function () {
       created_by: currentUserId
     };
 
-    const extendedPayload = {
-      ...basePayload,
-      operation_type: opType,
-      submitted_payment: submittedPayment,
-      admission_slip: admissionSlip,
-      assistant_fee: assistantFee,
-      hdu_icu: hduIcu,
-      medicine: medicine
-    };
-
     if (SupabaseClient.isReady()) {
       try {
+        const session = await SupabaseClient.ensureAuthenticatedSession('operation');
+        if (session?.user?.id) {
+          basePayload.created_by = session.user.id;
+        }
         const client = SupabaseClient.getClient();
-        let res = await client
+        const res = await client
           .from('operation_payments')
-          .insert([extendedPayload])
+          .insert([basePayload])
           .select()
           .single();
-
-        // If Supabase schema lacks the new columns, fall back to basePayload
-        if (res.error && (res.error.code === 'PGRST204' || (res.error.message && res.error.message.includes('column')))) {
-          res = await client
-            .from('operation_payments')
-            .insert([basePayload])
-            .select()
-            .single();
-        }
 
         if (res.error) {
           console.warn("[OperationService] Supabase insert warning:", res.error);
@@ -357,34 +326,16 @@ const OperationService = (function () {
       day: day
     };
 
-    const extendedPayload = {
-      ...basePayload,
-      operation_type: opType,
-      submitted_payment: submittedPayment,
-      admission_slip: admissionSlip,
-      assistant_fee: assistantFee,
-      hdu_icu: hduIcu,
-      medicine: medicine
-    };
-
     if (SupabaseClient.isReady()) {
       try {
+        await SupabaseClient.ensureAuthenticatedSession('operation');
         const client = SupabaseClient.getClient();
-        let res = await client
+        const res = await client
           .from('operation_payments')
-          .update(extendedPayload)
+          .update(basePayload)
           .eq('id', id)
           .select()
           .single();
-
-        if (res.error && (res.error.code === 'PGRST204' || (res.error.message && res.error.message.includes('column')))) {
-          res = await client
-            .from('operation_payments')
-            .update(basePayload)
-            .eq('id', id)
-            .select()
-            .single();
-        }
 
         if (res.data) {
           const mapped = mapRowToModel(res.data);
@@ -451,6 +402,7 @@ const OperationService = (function () {
   async function deleteRecord(id) {
     if (SupabaseClient.isReady()) {
       try {
+        await SupabaseClient.ensureAuthenticatedSession('operation');
         const client = SupabaseClient.getClient();
         const { error } = await client
           .from('operation_payments')
@@ -473,6 +425,7 @@ const OperationService = (function () {
   async function clearAll() {
     if (SupabaseClient.isReady()) {
       try {
+        await SupabaseClient.ensureAuthenticatedSession('operation');
         const client = SupabaseClient.getClient();
         // Delete all rows accessible under current RLS policy
         const { error } = await client

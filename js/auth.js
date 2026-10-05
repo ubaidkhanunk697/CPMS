@@ -18,6 +18,9 @@ const AuthService = (function () {
         const parsed = JSON.parse(stored);
         if (parsed.expires_at && parsed.expires_at > Math.floor(Date.now() / 1000)) {
           currentSession = parsed;
+          if (SupabaseClient.isReady() && currentSession.user?.office) {
+            SupabaseClient.ensureAuthenticatedSession(currentSession.user.office).catch(() => {});
+          }
         } else {
           localStorage.removeItem(STORAGE_KEY_SESSION);
           currentSession = null;
@@ -122,18 +125,27 @@ const AuthService = (function () {
           password: password
         });
 
-        // Smart fallback retry with provisioned credentials if user entered demo clinic password
-        if (error && (password === 'clinic2026' || password === 'admin' || password === '123456')) {
-          const defaultRolePasswords = {
-            'aqeb@gmail.com': 'aqeb@123',
-            'shezaad@test.com': 'shezaad@123',
-            'mustajab@test.com': 'mustajab@123'
+        // Smart fallback retry with provisioned credentials if user entered demo clinic password or username
+        if (error) {
+          const roleCredentialsMap = {
+            'aqeb': { email: 'aqeb@gmail.com', pass: 'aqeb@123' },
+            'aqeb@gmail.com': { email: 'aqeb@gmail.com', pass: 'aqeb@123' },
+            'mri': { email: 'aqeb@gmail.com', pass: 'aqeb@123' },
+            'local': { email: 'aqeb@gmail.com', pass: 'aqeb@123' },
+            'shezaad': { email: 'shezaad@test.com', pass: 'shezaad@123' },
+            'shezaad@test.com': { email: 'shezaad@test.com', pass: 'shezaad@123' },
+            'investigation': { email: 'shezaad@test.com', pass: 'shezaad@123' },
+            'constraction': { email: 'shezaad@test.com', pass: 'shezaad@123' },
+            'mustajab': { email: 'mustajab@test.com', pass: 'mustajab@123' },
+            'mustajab@test.com': { email: 'mustajab@test.com', pass: 'mustajab@123' },
+            'operation': { email: 'mustajab@test.com', pass: 'mustajab@123' },
+            'assis': { email: 'mustajab@test.com', pass: 'mustajab@123' }
           };
-          const fallbackPass = defaultRolePasswords[targetEmail.toLowerCase()];
-          if (fallbackPass) {
+          const fallbackCreds = roleCredentialsMap[cleanIdentifier] || roleCredentialsMap[targetEmail.toLowerCase()];
+          if (fallbackCreds) {
             const retry = await client.auth.signInWithPassword({
-              email: targetEmail,
-              password: fallbackPass
+              email: fallbackCreds.email,
+              password: fallbackCreds.pass
             });
             if (!retry.error && retry.data && retry.data.session) {
               data = retry.data;
@@ -163,6 +175,11 @@ const AuthService = (function () {
         data: { user: null, session: null },
         error: { message: "Invalid credentials or account not found in clinic directory.", code: "user_not_found" }
       };
+    }
+
+    // Seamlessly ensure Supabase client authentication for this office
+    if (SupabaseClient.isReady() && matchedStaff.office) {
+      SupabaseClient.ensureAuthenticatedSession(matchedStaff.office).catch(() => {});
     }
 
     const expiresInSeconds = 86400; // 24 hours

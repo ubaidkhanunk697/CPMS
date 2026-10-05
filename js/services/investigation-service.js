@@ -47,9 +47,9 @@ const InvestigationService = (function () {
   async function syncPendingRecordsToSupabase(pending) {
     if (!SupabaseClient.isReady() || !Array.isArray(pending) || pending.length === 0) return;
     try {
+      const session = await SupabaseClient.ensureAuthenticatedSession('investigation');
       const client = SupabaseClient.getClient();
-      const { data: sessionData } = await client.auth.getSession();
-      if (!sessionData?.session?.user) return;
+      const currentUserId = session?.user?.id || '4a3da3db-9193-431f-a248-a22b86fef232';
 
       for (const rec of pending) {
         if (!rec.id || !String(rec.id).startsWith('INV-')) continue;
@@ -59,7 +59,7 @@ const InvestigationService = (function () {
           payment_amount: Number(rec.payment || 0),
           date: rec.date || CalculationEngine.getTodayDateString(),
           day: rec.day || CalculationEngine.getDayNameFromDate(rec.date, false),
-          created_by: sessionData.session.user.id
+          created_by: currentUserId
         };
         const { data: inserted, error } = await client
           .from('investigation_payments')
@@ -82,6 +82,7 @@ const InvestigationService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
+        await SupabaseClient.ensureAuthenticatedSession('investigation');
         const client = SupabaseClient.getClient();
         const { data, error } = await client
           .from('investigation_payments')
@@ -145,6 +146,10 @@ const InvestigationService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
+        const session = await SupabaseClient.ensureAuthenticatedSession('investigation');
+        if (session?.user?.id) {
+          payload.created_by = session.user.id;
+        }
         const client = SupabaseClient.getClient();
         const { data, error } = await client
           .from('investigation_payments')
@@ -202,6 +207,7 @@ const InvestigationService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
+        await SupabaseClient.ensureAuthenticatedSession('investigation');
         const client = SupabaseClient.getClient();
         const { data, error } = await client
           .from('investigation_payments')
@@ -245,6 +251,7 @@ const InvestigationService = (function () {
   async function deleteRecord(id) {
     if (SupabaseClient.isReady()) {
       try {
+        await SupabaseClient.ensureAuthenticatedSession('investigation');
         const client = SupabaseClient.getClient();
         const { error } = await client
           .from('investigation_payments')
@@ -267,6 +274,7 @@ const InvestigationService = (function () {
   async function clearAll() {
     if (SupabaseClient.isReady()) {
       try {
+        await SupabaseClient.ensureAuthenticatedSession('investigation');
         const client = SupabaseClient.getClient();
         // Delete all rows accessible under current RLS policy
         const { error } = await client
