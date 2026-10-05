@@ -39,7 +39,7 @@ const UserService = (function () {
       email: 'mustajab@test.com',
       altEmail: 'mustajab@clinic.local',
       username: 'mustajab',
-      name: 'Assistant Console',
+      name: 'Assis Console',
       nameKey: 'officer_mustajab',
       role: 'operation_officer',
       roleKey: 'role_asst_officer',

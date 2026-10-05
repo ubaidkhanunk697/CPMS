@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ClinicPay">
 
-  <title>Clinic Payment Management System</title>
+  <title>Glossary Payment System</title>
 
   <!-- PWA Manifest & App Icons -->
   <link rel="manifest" href="./manifest.json">
@@ -162,14 +162,14 @@
           <img src="./assets/icons/clinic-logo.svg" alt="Clinic Logo" width="36" height="36">
         </div>
         <div class="brand-text">
-          <span class="brand-title" data-i18n="app_title">Clinic Payment</span>
-          <span class="brand-subtitle" data-i18n="clinic_name">Khattak Medical</span>
+          <span class="brand-title" data-i18n="app_title">Glossary Payment System</span>
+          <span class="brand-subtitle" data-i18n="clinic_name">Glossary Shop</span>
         </div>
       </div>
 
       <!-- Navigation Links -->
       <div class="sidebar-content">
-        <div class="nav-group-title" data-i18n="nav_offices">Clinic Offices</div>
+        <div class="nav-group-title" data-i18n="nav_offices">Glossary Offices</div>
         <ul class="nav-list">
           <!-- 1. MRI Office -->
           <li>
@@ -195,13 +195,13 @@
             </a>
           </li>
 
-          <!-- 3. Operation / Assistant Office -->
+          <!-- 3. Assis Office -->
           <li>
             <a href="#operation" class="nav-link" data-office="operation">
               <svg class="nav-icon" viewBox="0 0 24 24">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
               </svg>
-              <span class="nav-label" data-i18n="operation_office">Operation / Assistant</span>
+              <span class="nav-label" data-i18n="operation_office">Assis Office</span>
             </a>
           </li>
 
@@ -564,7 +564,7 @@
         </section>
 
         <!-- Dedicated Operation/Assistant Office Payment Entry Form (Officer: Qari Mustajab) -->
-        <section id="operation-entry-card" class="op-entry-card" aria-label="Operation Payment Entry" style="display: none;">
+        <section id="operation-entry-card" class="op-entry-card" aria-label="Glossary Payment Entry" style="display: none;">
           <div class="op-form-header">
             <div class="op-form-header-title">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -574,7 +574,7 @@
                 <line x1="14.47" y1="14.48" x2="20" y2="20"/>
                 <line x1="8.12" y1="8.12" x2="12" y2="12"/>
               </svg>
-              <span data-i18n="op_payment_entry">Operation Payment Entry</span>
+              <span data-i18n="op_payment_entry">Glossary Payment Entry</span>
             </div>
             <div class="op-rule-badge" data-i18n="op_calc_rule_hint">
               Payment Rule: 100% Doctor Amount (No Deduction)
@@ -1092,7 +1092,7 @@
               <select name="officeId" id="modal-office-select" class="form-control" required>
                 <option value="mri" data-i18n="mri_office">MRI Office</option>
                 <option value="investigation" data-i18n="investigation_office">Investigation Office</option>
-                <option value="operation" data-i18n="operation_office">Operation / Assistant Office</option>
+                <option value="operation" data-i18n="operation_office">Assis Office</option>
                 <option value="doctor" data-i18n="doctor_office">Head Office</option>
               </select>
             </div>

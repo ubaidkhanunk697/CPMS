@@ -44,9 +44,9 @@ const ClinicRepository = (function () {
     },
     {
       id: "operation",
-      name: "Operation / Assistant Office",
+      name: "Assis Office",
       nameKey: "operation_office",
-      officer: "Assistant Console",
+      officer: "Assis Console",
       officerKey: "officer_mustajab",
       role: "Surgical Assistant Incharge",
       roleKey: "role_asst_officer",

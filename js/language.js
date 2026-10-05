@@ -10,21 +10,21 @@ const LanguageManager = (function () {
   const translations = {
     en: {
       // App Branding
-      app_title: "Clinic Payment System",
+      app_title: "Glossary Payment System",
       app_subtitle: "Financial Administration",
-      clinic_name: "Khattak Medical & Diagnostic",
+      clinic_name: "Glossary Shop",
       
       // Offices
       mri_office: "MRI Office",
       investigation_office: "Investigation Office",
-      operation_office: "Operation / Assistant Office",
+      operation_office: "Assis Office",
       doctor_office: "Head Office",
       
       // Officers & Doctor
       officer_aqeb: "Aqeb Khan",
       officer_shezaad: "Shezaad",
-      officer_mustajab: "Assistant Console",
-      assistant_console: "Assistant Console",
+      officer_mustajab: "Assis Console",
+      assistant_console: "Assis Console",
       doctor_nawaz: "Admin Console",
       admin_console: "Admin Console",
       role_mri_officer: "MRI Incharge",
@@ -34,7 +34,7 @@ const LanguageManager = (function () {
       assigned_officer: "Assigned Officer",
 
       // Navigation Groups
-      nav_offices: "Clinic Offices",
+      nav_offices: "Glossary Offices",
       nav_system: "System & Tools",
       nav_reports: "Financial Reports",
       nav_settings: "Settings",
@@ -197,7 +197,7 @@ const LanguageManager = (function () {
       toast_inv_cleared: "All Investigation records have been deleted.",
 
       // Operation Office Dedicated Strings (Officer: Qari Mustajab)
-      op_payment_entry: "Operation Payment Entry",
+      op_payment_entry: "Glossary Payment Entry",
       op_patient_name: "Patient Name",
       op_operation_name: "Operation Type",
       op_operation_type: "Operation Type",
@@ -340,21 +340,21 @@ const LanguageManager = (function () {
 
     ur: {
       // App Branding
-      app_title: "کلینک ادائیگی کا نظام",
+      app_title: "Glossary Payment System",
       app_subtitle: "مالیاتی انتظام",
-      clinic_name: "ختک میڈیکل اینڈ ڈائیگنوسٹک",
+      clinic_name: "Glossary Shop",
       
       // Offices
       mri_office: "ایم آر آئی دفتر",
       investigation_office: "تحقیقاتی لیب دفتر",
-      operation_office: "آپریشن / اسسٹنٹ دفتر",
+      operation_office: "Assis Office",
       doctor_office: "ہیڈ آفس",
       
       // Officers & Doctor
       officer_aqeb: "عاقب خان",
       officer_shezaad: "شہزاد",
-      officer_mustajab: "اسسٹنٹ کنسول",
-      assistant_console: "اسسٹنٹ کنسول",
+      officer_mustajab: "Assis Console",
+      assistant_console: "Assis Console",
       doctor_nawaz: "ایڈمن کنسول",
       admin_console: "ایڈمن کنسول",
       role_mri_officer: "ایم آر آئی انچارج",
@@ -364,7 +364,7 @@ const LanguageManager = (function () {
       assigned_officer: "متعلقہ افسر",
 
       // Navigation Groups
-      nav_offices: "کلینک دفاتر",
+      nav_offices: "Glossary Offices",
       nav_system: "سسٹم اور اوزار",
       nav_reports: "مالیاتی رپورٹس",
       nav_settings: "ترتیبات",
@@ -529,7 +529,7 @@ const LanguageManager = (function () {
       toast_inv_cleared: "تمام تحقیقاتی ریکارڈز حذف کر دیے گئے۔",
 
       // Operation Office Dedicated Strings (Officer: Qari Mustajab)
-      op_payment_entry: "آپریشن فیس کا اندراج",
+      op_payment_entry: "Glossary Payment Entry",
       op_patient_name: "مریض کا نام",
       op_operation_name: "آپریشن کی قسم",
       op_operation_type: "آپریشن کی قسم",
