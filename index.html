@@ -586,27 +586,28 @@
             <div class="op-form-grid">
               <!-- 1. Patient Name (REQUIRED) -->
               <div class="form-group">
-                <label class="form-label required" data-i18n="op_patient_name">Patient Name</label>
+                <label class="form-label required" data-i18n="op_patient_name">Name</label>
                 <input 
                   type="text" 
                   id="op-patient-name" 
                   name="patientName" 
                   class="form-control" 
-                  placeholder="e.g. Zahid Ali" 
+                  placeholder="Enter Name" 
+                  data-i18n-placeholder="op_patient_placeholder"
                   required
                 >
               </div>
 
               <!-- 2. Operation Type (REQUIRED) -->
               <div class="form-group">
-                <label class="form-label required" data-i18n="op_operation_type">Operation Type</label>
+                <label class="form-label required" data-i18n="op_operation_type">Service</label>
                 <input 
                   type="text" 
                   list="op-operations-list" 
                   id="op-operation-name" 
                   name="operationName" 
                   class="form-control" 
-                  placeholder="Select or enter operation type..." 
+                  placeholder="Select or enter Glossery type..." 
                   data-i18n-placeholder="op_operation_placeholder"
                   required
                 >
@@ -628,13 +629,14 @@
 
               <!-- 3. Received Payment (REQUIRED) -->
               <div class="form-group">
-                <label class="form-label required" data-i18n="op_received_payment">Received Payment</label>
+                <label class="form-label required" data-i18n="op_received_payment">R Payment</label>
                 <input 
                   type="number" 
                   id="op-payment-input" 
                   name="payment" 
                   class="form-control" 
-                  placeholder="e.g. 50000" 
+                  placeholder="Glossery Pay" 
+                  data-i18n-placeholder="op_payment_placeholder"
                   min="1" 
                   step="100" 
                   required
@@ -669,13 +671,13 @@
 
             <!-- Optional Amount Breakdown (Defaults to 0 if left empty) -->
             <div class="op-optional-divider">
-              <span data-i18n="op_optional_details">Optional Amount Breakdown (Defaults to 0 if left empty)</span>
+              <span data-i18n="op_optional_details">Glossery Amount Breakdown (Defaults to 0 if left empty)</span>
             </div>
 
             <div class="op-optional-grid">
               <!-- 4. Submitted Payment (OPTIONAL) -->
               <div class="form-group">
-                <label class="form-label" data-i18n="op_submitted_payment">Submitted Payment</label>
+                <label class="form-label" data-i18n="op_submitted_payment">S Payment</label>
                 <input 
                   type="number" 
                   id="op-submitted-payment" 
@@ -689,7 +691,7 @@
 
               <!-- 5. Admission / Slip (OPTIONAL) -->
               <div class="form-group">
-                <label class="form-label" data-i18n="op_admission_slip">Admission / Slip</label>
+                <label class="form-label" data-i18n="op_admission_slip">Slip</label>
                 <input 
                   type="number" 
                   id="op-admission-slip" 
@@ -703,7 +705,7 @@
 
               <!-- 6. Assistant (OPTIONAL) -->
               <div class="form-group">
-                <label class="form-label" data-i18n="op_assistant_fee">Assistant</label>
+                <label class="form-label" data-i18n="op_assistant_fee">Assist</label>
                 <input 
                   type="number" 
                   id="op-assistant-fee" 
@@ -717,7 +719,7 @@
 
               <!-- 7. HDU / ICU (OPTIONAL) -->
               <div class="form-group">
-                <label class="form-label" data-i18n="op_hdu_icu">HDU / ICU</label>
+                <label class="form-label" data-i18n="op_hdu_icu">HIU</label>
                 <input 
                   type="number" 
                   id="op-hdu-icu" 
@@ -731,7 +733,7 @@
 
               <!-- 8. Medicine (OPTIONAL) -->
               <div class="form-group">
-                <label class="form-label" data-i18n="op_medicine">Medicine</label>
+                <label class="form-label" data-i18n="op_medicine">Purchase</label>
                 <input 
                   type="number" 
                   id="op-medicine" 
@@ -770,7 +772,7 @@
                   <line x1="12" y1="5" x2="12" y2="19"/>
                   <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
-                <span data-i18n="btn_add_op_entry">Record Operation Payment</span>
+                <span data-i18n="btn_add_op_entry">Record Glossary Payment</span>
               </button>
             </div>
           </form>
@@ -792,11 +794,11 @@
               </div>
               <div class="doctor-banner-meta">
                 <div class="doctor-meta-stat">
-                  <span class="stat-label" data-i18n="doctor_total_clinic_revenue">Total Clinic Collection</span>
+                  <span class="stat-label" data-i18n="doctor_total_clinic_revenue">Total Glossary Collection</span>
                   <span id="doc-gross-collection" class="stat-val">₨ 0</span>
                 </div>
                 <div class="doctor-meta-stat">
-                  <span class="stat-label" data-i18n="doctor_total_clinic_entries">Total Clinic Entries</span>
+                  <span class="stat-label" data-i18n="doctor_total_clinic_entries">Total Glossary Entries</span>
                   <span id="doc-gross-entries" class="stat-val">0</span>
                 </div>
               </div>
@@ -806,7 +808,7 @@
             <div class="doctor-grand-display">
               <span class="doctor-grand-label" data-i18n="doctor_grand_total">Total Earnings</span>
               <div id="doc-grand-total-val" class="doctor-grand-val">₨ 0</div>
-              <span class="doctor-grand-sub" data-i18n="doctor_grand_total_desc">Net revenue aggregated across MRI, Investigation, and Assistant units</span>
+              <span class="doctor-grand-sub" data-i18n="doctor_grand_total_desc">Net revenue aggregated across Local, Constraction, and Assist units</span>
             </div>
 
             <!-- Formula Equation Breakdown Bar -->
@@ -817,12 +819,12 @@
               </div>
               <span class="formula-op">+</span>
               <div class="formula-part">
-                <span class="formula-label" data-i18n="doctor_formula_inv">Investigation Share:</span>
+                <span class="formula-label" data-i18n="doctor_formula_inv">Constraction Share:</span>
                 <span id="doc-formula-inv" class="formula-val inv">₨ 0</span>
               </div>
               <span class="formula-op">+</span>
               <div class="formula-part">
-                <span class="formula-label" data-i18n="doctor_formula_asst">Assistant Share:</span>
+                <span class="formula-label" data-i18n="doctor_formula_asst">Assist Share:</span>
                 <span id="doc-formula-asst" class="formula-val op">₨ 0</span>
               </div>
               <span class="formula-op">=</span>
@@ -843,7 +845,7 @@
                   <line x1="8" y1="21" x2="16" y2="21"/>
                   <line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
-                <span data-i18n="doctor_tab_mri">MRI</span>
+                <span data-i18n="doctor_tab_mri">Local</span>
                 <span id="doc-tab-badge-mri" class="doctor-tab-badge">0</span>
               </button>
 
@@ -853,7 +855,7 @@
                   <line x1="8" y1="2" x2="16" y2="2"/>
                   <line x1="6.87" y1="15" x2="17.13" y2="15"/>
                 </svg>
-                <span data-i18n="doctor_tab_investigation">Investigation</span>
+                <span data-i18n="doctor_tab_investigation">Constraction</span>
                 <span id="doc-tab-badge-inv" class="doctor-tab-badge">0</span>
               </button>
 
@@ -865,7 +867,7 @@
                   <line x1="14.47" y1="14.48" x2="20" y2="20"/>
                   <line x1="8.12" y1="8.12" x2="12" y2="12"/>
                 </svg>
-                <span data-i18n="doctor_tab_assistant">Assistant</span>
+                <span data-i18n="doctor_tab_assistant">Assist</span>
                 <span id="doc-tab-badge-asst" class="doctor-tab-badge">0</span>
               </button>
             </div>
@@ -907,7 +909,7 @@
           <section class="doctor-table-card" aria-label="Department Payment Records">
             <div class="card-header">
               <div class="card-title-group">
-                <h2 id="doctor-table-title" class="card-title" data-i18n="doc_mri_records_title">MRI Department Records</h2>
+                <h2 id="doctor-table-title" class="card-title" data-i18n="doc_mri_records_title">Local Department Records</h2>
                 <p id="doctor-table-subtitle" class="card-description" data-i18n="doctor_grand_total_desc">Detailed entries for the active department</p>
               </div>
               <div class="header-action-group">
@@ -961,8 +963,8 @@
           <!-- Card Header & Actions -->
           <div class="card-header">
             <div class="card-title-group">
-              <h2 id="table-panel-title" class="card-title" data-i18n="mri_payment_history">MRI Payment History</h2>
-              <p class="card-description" data-i18n="app_subtitle">Financial record of fees, doctor shares, and office collections</p>
+              <h2 id="table-panel-title" class="card-title" data-i18n="mri_payment_history">Local Payment History</h2>
+              <p class="card-description" data-i18n="app_subtitle">Financial record of fees, Admin shares, and office collections</p>
             </div>
             <div class="header-action-group">
               <!-- Clear All MRI Button -->
@@ -1020,7 +1022,7 @@
                 type="text" 
                 id="filter-search" 
                 class="search-input" 
-                placeholder="Search by patient name, ID, or phone..."
+                placeholder="Search by Glossary name, ID, or phone..."
                 data-i18n-placeholder="filter_search_placeholder"
               >
             </div>
@@ -1049,11 +1051,11 @@
             <table class="data-table">
               <thead id="data-table-head">
                 <tr id="table-headers-row">
-                  <th data-i18n="col_patient_name">Patient Name</th>
-                  <th data-i18n="col_mri_type">MRI Type</th>
+                  <th data-i18n="col_patient_name">P Name</th>
+                  <th data-i18n="col_mri_type">Local Type</th>
                   <th data-i18n="col_payment">Payment</th>
-                  <th data-i18n="col_office_share">MRI Office Share</th>
-                  <th data-i18n="col_mri_profit">MRI Profit</th>
+                  <th data-i18n="col_office_share">Local Office Share</th>
+                  <th data-i18n="col_mri_profit">Local Profit</th>
                   <th data-i18n="col_date">Date</th>
                   <th data-i18n="col_day">Day</th>
                   <th data-i18n="col_actions">Actions</th>
@@ -1079,7 +1081,7 @@
   <div id="payment-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-payment-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-payment-title" class="modal-title" data-i18n="modal_new_payment_title">Record Clinic Payment</h3>
+        <h3 id="modal-payment-title" class="modal-title" data-i18n="modal_new_payment_title">Record Glossary Payment</h3>
         <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
       </div>
 
@@ -1090,8 +1092,8 @@
             <div class="form-group full-width">
               <label class="form-label required" data-i18n="form_office_select">Target Office</label>
               <select name="officeId" id="modal-office-select" class="form-control" required>
-                <option value="mri" data-i18n="mri_office">MRI Office</option>
-                <option value="investigation" data-i18n="investigation_office">Investigation Office</option>
+                <option value="mri" data-i18n="mri_office">Local Office</option>
+                <option value="investigation" data-i18n="investigation_office">Constraction Office</option>
                 <option value="operation" data-i18n="operation_office">Assis Office</option>
                 <option value="doctor" data-i18n="doctor_office">Head Office</option>
               </select>
@@ -1099,8 +1101,8 @@
 
             <!-- Patient Name -->
             <div class="form-group">
-              <label class="form-label required" data-i18n="form_patient_name">Patient Full Name</label>
-              <input type="text" name="patientName" class="form-control" placeholder="e.g. Zahid Ali" required>
+              <label class="form-label required" data-i18n="form_patient_name">P Full Name</label>
+              <input type="text" name="patientName" class="form-control" placeholder="Enter Full Name" data-i18n-placeholder="form_patient_placeholder" required>
             </div>
 
             <!-- Patient Contact -->
@@ -1111,7 +1113,7 @@
 
             <!-- Service Description -->
             <div class="form-group full-width">
-              <label class="form-label required" data-i18n="form_service_description">Procedure / Scan / Investigation</label>
+              <label class="form-label required" data-i18n="form_service_description">Procedure / Scan / Constraction</label>
               <input type="text" name="service" class="form-control" placeholder="e.g. Brain MRI, Laparoscopy, Lipid Profile" required>
             </div>
 
@@ -1123,7 +1125,7 @@
 
             <!-- Doctor Share Percentage -->
             <div class="form-group">
-              <label class="form-label required" data-i18n="form_doctor_percentage">Doctor Share (%)</label>
+              <label class="form-label required" data-i18n="form_doctor_percentage">Admin Share (%)</label>
               <input type="number" name="doctorPercent" id="field-doctor-pct" class="form-control" min="0" max="100" value="30" required>
             </div>
 
@@ -1154,7 +1156,7 @@
           <div class="calc-breakdown-card">
             <span style="font-weight: 700; font-size: 0.82rem; color: var(--navy-900);" data-i18n="calc_preview_heading">Payment Calculation Summary</span>
             <div class="breakdown-row">
-              <span data-i18n="calc_doctor_amount">Calculated Doctor Share:</span>
+              <span data-i18n="calc_doctor_amount">Calculated Admin Share:</span>
               <strong id="calc-preview-doctor" style="color: var(--red-600);">₨ 0</strong>
             </div>
             <div class="breakdown-row">
@@ -1182,7 +1184,7 @@
   <div id="mri-edit-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-edit-mri-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-edit-mri-title" class="modal-title" data-i18n="modal_edit_mri_title">Edit MRI Payment Record</h3>
+        <h3 id="modal-edit-mri-title" class="modal-title" data-i18n="modal_edit_mri_title">Edit Local Payment Record</h3>
         <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
       </div>
 
@@ -1191,12 +1193,12 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group full-width">
-              <label class="form-label required" data-i18n="mri_patient_name">Patient Name</label>
+              <label class="form-label required" data-i18n="mri_patient_name">P Name</label>
               <input type="text" id="mri-edit-patient-name" name="patientName" class="form-control" required>
             </div>
 
             <div class="form-group full-width">
-              <label class="form-label required" data-i18n="mri_type">MRI Type</label>
+              <label class="form-label required" data-i18n="mri_type">Service</label>
               <input type="text" list="mri-types-list" id="mri-edit-type-input" name="mriType" class="form-control" required>
             </div>
 
@@ -1220,11 +1222,11 @@
           <div class="calc-breakdown-card">
             <span style="font-weight: 700; font-size: 0.82rem; color: var(--navy-900);" data-i18n="calc_preview_heading">Payment Calculation Summary</span>
             <div class="breakdown-row">
-              <span data-i18n="mri_office_share_fixed">MRI Office Share:</span>
+              <span data-i18n="mri_office_share_fixed">Local Office Share:</span>
               <strong id="mri-edit-preview-office" style="color: var(--success-badge);">₨ 0</strong>
             </div>
             <div class="breakdown-row">
-              <span data-i18n="mri_profit">MRI Profit:</span>
+              <span data-i18n="mri_profit">Local Profit:</span>
               <strong id="mri-edit-preview-doctor" style="color: var(--red-600);">₨ 0</strong>
             </div>
           </div>
@@ -1244,7 +1246,7 @@
   <div id="inv-edit-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-edit-inv-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-edit-inv-title" class="modal-title" data-i18n="modal_edit_inv_title">Edit Investigation Payment Record</h3>
+        <h3 id="modal-edit-inv-title" class="modal-title" data-i18n="modal_edit_inv_title">Edit Constraction Payment Record</h3>
         <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
       </div>
 
@@ -1253,12 +1255,12 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group full-width">
-              <label class="form-label required" data-i18n="inv_patient_name">Patient Name</label>
+              <label class="form-label required" data-i18n="inv_patient_name">P Name</label>
               <input type="text" id="inv-edit-patient-name" name="patientName" class="form-control" required>
             </div>
 
             <div class="form-group full-width">
-              <label class="form-label required" data-i18n="inv_test_name">Test Name</label>
+              <label class="form-label required" data-i18n="inv_test_name">Material Name</label>
               <input type="text" list="inv-tests-list" id="inv-edit-test-name" name="testName" class="form-control" required>
             </div>
 
@@ -1282,11 +1284,11 @@
           <div class="calc-breakdown-card">
             <span style="font-weight: 700; font-size: 0.82rem; color: var(--navy-900);" data-i18n="calc_preview_heading">Payment Calculation Summary</span>
             <div class="breakdown-row">
-              <span data-i18n="inv_total_received">Investigation Total:</span>
+              <span data-i18n="inv_total_received">Constraction Total:</span>
               <strong id="inv-edit-preview-total" style="color: var(--navy-900);">₨ 0</strong>
             </div>
             <div class="breakdown-row">
-              <span data-i18n="doctor_amount_cut">Doctor Amount:</span>
+              <span data-i18n="doctor_amount_cut">Admin Amount:</span>
               <strong id="inv-edit-preview-doctor" style="color: var(--red-600);">₨ 0</strong>
             </div>
           </div>
@@ -1306,7 +1308,7 @@
   <div id="op-edit-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-edit-op-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-edit-op-title" class="modal-title" data-i18n="modal_edit_op_title">Edit Operation Payment Record</h3>
+        <h3 id="modal-edit-op-title" class="modal-title" data-i18n="modal_edit_op_title">Edit Glossary Payment Record</h3>
         <button class="modal-close-btn btn-close-modal" aria-label="Close dialog">&times;</button>
       </div>
 
@@ -1315,12 +1317,12 @@
         <div class="modal-body">
           <div class="form-grid">
             <div class="form-group full-width">
-              <label class="form-label required" data-i18n="op_patient_name">Patient Name</label>
+              <label class="form-label required" data-i18n="op_edit_patient_name">P Name</label>
               <input type="text" id="op-edit-patient-name" name="patientName" class="form-control" required>
             </div>
 
             <div class="form-group full-width">
-              <label class="form-label required" data-i18n="op_operation_type">Operation Type</label>
+              <label class="form-label required" data-i18n="op_operation_type">Service</label>
               <input type="text" list="op-operations-list" id="op-edit-operation-name" name="operationName" class="form-control" required>
             </div>
 
@@ -1341,27 +1343,27 @@
 
             <!-- Optional Fields in Edit Modal -->
             <div class="form-group">
-              <label class="form-label" data-i18n="op_submitted_payment">Submitted Payment</label>
+              <label class="form-label" data-i18n="op_submitted_payment">S Payment</label>
               <input type="number" id="op-edit-submitted-payment" name="submittedPayment" class="form-control" placeholder="0" min="0" step="50">
             </div>
 
             <div class="form-group">
-              <label class="form-label" data-i18n="op_admission_slip">Admission / Slip</label>
+              <label class="form-label" data-i18n="op_admission_slip">Slip</label>
               <input type="number" id="op-edit-admission-slip" name="admissionSlip" class="form-control" placeholder="0" min="0" step="50">
             </div>
 
             <div class="form-group">
-              <label class="form-label" data-i18n="op_assistant_fee">Assistant</label>
+              <label class="form-label" data-i18n="op_assistant_fee">Assist</label>
               <input type="number" id="op-edit-assistant-fee" name="assistantFee" class="form-control" placeholder="0" min="0" step="50">
             </div>
 
             <div class="form-group">
-              <label class="form-label" data-i18n="op_hdu_icu">HDU / ICU</label>
+              <label class="form-label" data-i18n="op_hdu_icu">HIU</label>
               <input type="number" id="op-edit-hdu-icu" name="hduIcu" class="form-control" placeholder="0" min="0" step="50">
             </div>
 
             <div class="form-group">
-              <label class="form-label" data-i18n="op_medicine">Medicine</label>
+              <label class="form-label" data-i18n="op_medicine">Purchase</label>
               <input type="number" id="op-edit-medicine" name="medicine" class="form-control" placeholder="0" min="0" step="50">
             </div>
           </div>
