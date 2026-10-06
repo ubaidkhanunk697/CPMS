@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clinic-pay-v12';
+const CACHE_NAME = 'clinic-pay-v13';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

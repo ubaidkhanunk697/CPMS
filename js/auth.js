@@ -118,8 +118,9 @@ const AuthService = (function () {
     }
 
     const cleanIdentifier = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
-    // 1. Direct handling for Admin Console / Doctor accounts (prevents 400/406/429 errors)
+    // 1. Direct handling for Admin Console / Doctor accounts
     const isDoctorAdmin = (
       cleanIdentifier === 'drnawaz' || 
       cleanIdentifier === 'doctor' || 
@@ -129,6 +130,31 @@ const AuthService = (function () {
     );
 
     if (isDoctorAdmin) {
+      // Strictly verify Doctor/Admin credentials - NEVER allow false passwords!
+      const validAdminPasswords = ['drnawaz@123', 'clinic2026', 'admin', 'admin123'];
+      let isDoctorAuthenticated = validAdminPasswords.includes(cleanPassword);
+
+      // If online and Supabase has an account for drnawaz, check that as well
+      if (!isDoctorAuthenticated && SupabaseClient.isReady()) {
+        try {
+          const client = SupabaseClient.getClient();
+          const { data: docData, error: docErr } = await client.auth.signInWithPassword({
+            email: 'drnawaz@test.com',
+            password: cleanPassword
+          });
+          if (!docErr && docData && docData.session) {
+            isDoctorAuthenticated = true;
+          }
+        } catch (_) {}
+      }
+
+      if (!isDoctorAuthenticated) {
+        return {
+          data: { user: null, session: null },
+          error: { message: "Invalid email or password. Please check your credentials.", code: "invalid_credentials" }
+        };
+      }
+
       const matchedStaff = await UserService.getProfileByEmailOrUsername(cleanIdentifier) || {
         id: '1ff28414-74cc-4009-976b-3fba3382d93f',
         email: 'drnawaz@test.com',
@@ -192,39 +218,10 @@ const AuthService = (function () {
           }
         }
 
-        let { data, error } = await client.auth.signInWithPassword({
+        const { data, error } = await client.auth.signInWithPassword({
           email: targetEmail,
-          password: password
+          password: cleanPassword
         });
-
-        // Smart fallback retry with provisioned credentials if user entered demo clinic password or username
-        if (error) {
-          const roleCredentialsMap = {
-            'aqeb': { email: 'aqeb@gmail.com', pass: 'aqeb@123' },
-            'aqeb@gmail.com': { email: 'aqeb@gmail.com', pass: 'aqeb@123' },
-            'mri': { email: 'aqeb@gmail.com', pass: 'aqeb@123' },
-            'local': { email: 'aqeb@gmail.com', pass: 'aqeb@123' },
-            'shezaad': { email: 'shezaad@test.com', pass: 'shezaad@123' },
-            'shezaad@test.com': { email: 'shezaad@test.com', pass: 'shezaad@123' },
-            'investigation': { email: 'shezaad@test.com', pass: 'shezaad@123' },
-            'constraction': { email: 'shezaad@test.com', pass: 'shezaad@123' },
-            'mustajab': { email: 'mustajab@test.com', pass: 'mustajab@123' },
-            'mustajab@test.com': { email: 'mustajab@test.com', pass: 'mustajab@123' },
-            'operation': { email: 'mustajab@test.com', pass: 'mustajab@123' },
-            'assis': { email: 'mustajab@test.com', pass: 'mustajab@123' }
-          };
-          const fallbackCreds = roleCredentialsMap[cleanIdentifier] || roleCredentialsMap[targetEmail.toLowerCase()];
-          if (fallbackCreds) {
-            const retry = await client.auth.signInWithPassword({
-              email: fallbackCreds.email,
-              password: fallbackCreds.pass
-            });
-            if (!retry.error && retry.data && retry.data.session) {
-              data = retry.data;
-              error = null;
-            }
-          }
-        }
 
         if (!error && data && data.session) {
           const synced = await syncSupabaseSession(data.session);
@@ -234,13 +231,34 @@ const AuthService = (function () {
           };
         }
 
-        console.warn("[AuthService] Supabase Auth sign-in rejected or unconfigured password, evaluating clinic directory fallback:", error);
+        // When Supabase explicitly rejects credentials (400 Invalid login credentials),
+        // STOP immediately and return error. NEVER fall back to local mock login!
+        if (error) {
+          const isCredentialError = (
+            error.status === 400 ||
+            (error.message && error.message.toLowerCase().includes('invalid login credentials')) ||
+            (error.message && error.message.toLowerCase().includes('invalid_grant')) ||
+            error.code === 'invalid_credentials'
+          );
+
+          if (isCredentialError) {
+            return {
+              data: { user: null, session: null },
+              error: {
+                message: SupabaseClient.formatErrorMessage(error, "Invalid email or password. Please check your credentials."),
+                code: error.code || "invalid_credentials"
+              }
+            };
+          }
+        }
+
+        console.warn("[AuthService] Supabase Auth connection or server response:", error);
       } catch (err) {
-        console.warn("[AuthService] Supabase Auth connection failed, checking fallback:", err);
+        console.warn("[AuthService] Supabase Auth connection failed, evaluating offline standby:", err);
       }
     }
 
-    // 3. Standby / Local Directory Mode (Demo accounts)
+    // 3. Standby / Local Directory Mode (Offline emergency only)
     const matchedStaff = await UserService.getProfileByEmailOrUsername(cleanIdentifier);
     if (!matchedStaff) {
       return {
@@ -249,9 +267,24 @@ const AuthService = (function () {
       };
     }
 
-    // Seamlessly ensure Supabase client authentication for this office
-    if (SupabaseClient.isReady() && matchedStaff.office) {
-      SupabaseClient.ensureAuthenticatedSession(matchedStaff.office, false).catch(() => {});
+    // Strictly verify offline password - NEVER allow false passwords!
+    const staffValidPasswords = ['clinic2026'];
+    if (matchedStaff.username === 'aqeb' || matchedStaff.email.includes('aqeb')) {
+      staffValidPasswords.push('aqeb@123');
+    } else if (matchedStaff.username === 'shezaad' || matchedStaff.email.includes('shezaad')) {
+      staffValidPasswords.push('shezaad@123');
+    } else if (matchedStaff.username === 'mustajab' || matchedStaff.email.includes('mustajab')) {
+      staffValidPasswords.push('mustajab@123');
+    }
+
+    if (!staffValidPasswords.includes(cleanPassword)) {
+      return {
+        data: { user: null, session: null },
+        error: {
+          message: "Invalid email or password. Please check your credentials.",
+          code: "invalid_credentials"
+        }
+      };
     }
 
     const expiresInSeconds = 86400; // 24 hours
