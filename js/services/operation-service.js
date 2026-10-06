@@ -72,7 +72,7 @@ const OperationService = (function () {
   async function syncPendingRecordsToSupabase(pending) {
     if (!SupabaseClient.isReady() || !Array.isArray(pending) || pending.length === 0) return;
     try {
-      const session = await SupabaseClient.ensureAuthenticatedSession('operation');
+      const session = await SupabaseClient.ensureAuthenticatedSession('operation', true);
       const client = SupabaseClient.getClient();
       const currentUserId = session?.user?.id || '3e18c738-8f50-4fe0-9d30-62d1fa22a52a';
 
@@ -122,7 +122,7 @@ const OperationService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
-        await SupabaseClient.ensureAuthenticatedSession('operation');
+        await SupabaseClient.ensureAuthenticatedSession('operation', false);
         const client = SupabaseClient.getClient();
         const { data, error } = await client
           .from('operation_payments')
@@ -228,7 +228,7 @@ const OperationService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
-        const session = await SupabaseClient.ensureAuthenticatedSession('operation');
+        const session = await SupabaseClient.ensureAuthenticatedSession('operation', true);
         if (session?.user?.id) {
           basePayload.created_by = session.user.id;
         }
@@ -328,7 +328,7 @@ const OperationService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
-        await SupabaseClient.ensureAuthenticatedSession('operation');
+        await SupabaseClient.ensureAuthenticatedSession('operation', true);
         const client = SupabaseClient.getClient();
         const res = await client
           .from('operation_payments')
@@ -402,7 +402,7 @@ const OperationService = (function () {
   async function deleteRecord(id) {
     if (SupabaseClient.isReady()) {
       try {
-        await SupabaseClient.ensureAuthenticatedSession('operation');
+        await SupabaseClient.ensureAuthenticatedSession('operation', true);
         const client = SupabaseClient.getClient();
         const { error } = await client
           .from('operation_payments')
@@ -425,7 +425,7 @@ const OperationService = (function () {
   async function clearAll() {
     if (SupabaseClient.isReady()) {
       try {
-        await SupabaseClient.ensureAuthenticatedSession('operation');
+        await SupabaseClient.ensureAuthenticatedSession('operation', true);
         const client = SupabaseClient.getClient();
         // Delete all rows accessible under current RLS policy
         const { error } = await client

@@ -49,7 +49,7 @@ const MRIService = (function () {
   async function syncPendingRecordsToSupabase(pending) {
     if (!SupabaseClient.isReady() || !Array.isArray(pending) || pending.length === 0) return;
     try {
-      const session = await SupabaseClient.ensureAuthenticatedSession('mri');
+      const session = await SupabaseClient.ensureAuthenticatedSession('mri', true);
       const client = SupabaseClient.getClient();
       const currentUserId = session?.user?.id || '8b6ae295-6b27-4d25-bed2-abbf1e317f7f';
 
@@ -84,7 +84,7 @@ const MRIService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
-        await SupabaseClient.ensureAuthenticatedSession('mri');
+        await SupabaseClient.ensureAuthenticatedSession('mri', false);
         const client = SupabaseClient.getClient();
         const { data, error } = await client
           .from('mri_payments')
@@ -148,7 +148,7 @@ const MRIService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
-        const session = await SupabaseClient.ensureAuthenticatedSession('mri');
+        const session = await SupabaseClient.ensureAuthenticatedSession('mri', true);
         if (session?.user?.id) {
           payload.created_by = session.user.id;
         }
@@ -208,7 +208,7 @@ const MRIService = (function () {
 
     if (SupabaseClient.isReady()) {
       try {
-        await SupabaseClient.ensureAuthenticatedSession('mri');
+        await SupabaseClient.ensureAuthenticatedSession('mri', true);
         const client = SupabaseClient.getClient();
         const { data, error } = await client
           .from('mri_payments')
@@ -253,7 +253,7 @@ const MRIService = (function () {
   async function deleteRecord(id) {
     if (SupabaseClient.isReady()) {
       try {
-        await SupabaseClient.ensureAuthenticatedSession('mri');
+        await SupabaseClient.ensureAuthenticatedSession('mri', true);
         const client = SupabaseClient.getClient();
         const { error } = await client
           .from('mri_payments')
@@ -276,7 +276,7 @@ const MRIService = (function () {
   async function clearAll() {
     if (SupabaseClient.isReady()) {
       try {
-        await SupabaseClient.ensureAuthenticatedSession('mri');
+        await SupabaseClient.ensureAuthenticatedSession('mri', true);
         const client = SupabaseClient.getClient();
         // Delete all rows accessible under current RLS policy
         const { error } = await client

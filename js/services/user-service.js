@@ -54,6 +54,7 @@ const UserService = (function () {
       altEmail: 'doctor@clinic.local',
       username: 'drnawaz',
       altUsername: 'doctor',
+      aliases: ['admin', 'doctor', 'drnawaz', 'dr.nawaz', 'head office'],
       name: 'Admin Console',
       nameKey: 'doctor_nawaz',
       role: 'doctor',
@@ -65,10 +66,25 @@ const UserService = (function () {
     }
   ];
 
+  function findStaffInDirectory(clean) {
+    if (!clean) return null;
+    return CLINIC_STAFF.find(u => 
+      u.email.toLowerCase() === clean || 
+      (u.altEmail && u.altEmail.toLowerCase() === clean) ||
+      u.username.toLowerCase() === clean ||
+      (u.altUsername && u.altUsername.toLowerCase() === clean) ||
+      (Array.isArray(u.aliases) && u.aliases.some(a => a.toLowerCase() === clean))
+    ) || null;
+  }
+
   async function getProfile(userId) {
     if (!userId) return null;
 
-    // 1. Try Supabase if ready
+    // 1. Check local directory first
+    const local = CLINIC_STAFF.find(u => u.id === userId || u.email.toLowerCase() === userId.toLowerCase() || u.username === userId);
+    if (local) return local;
+
+    // 2. Try Supabase if ready
     if (SupabaseClient.isReady()) {
       try {
         const client = SupabaseClient.getClient();
@@ -76,7 +92,7 @@ const UserService = (function () {
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
           return mapProfileRow(data);
@@ -86,15 +102,18 @@ const UserService = (function () {
       }
     }
 
-    // 2. Fallback to clinic directory
-    return CLINIC_STAFF.find(u => u.id === userId || u.email.toLowerCase() === userId.toLowerCase() || u.username === userId) || null;
+    return null;
   }
 
   async function getProfileByEmailOrUsername(identifier) {
     if (!identifier) return null;
     const clean = identifier.trim().toLowerCase();
 
-    // 1. Check Supabase profiles table
+    // 1. Check staff directory first for instant resolution without network roundtrips
+    const matched = findStaffInDirectory(clean);
+    if (matched) return matched;
+
+    // 2. Check Supabase profiles table safely with maybeSingle (avoids 406 Not Acceptable)
     if (SupabaseClient.isReady()) {
       try {
         const client = SupabaseClient.getClient();
@@ -102,7 +121,7 @@ const UserService = (function () {
           .from('profiles')
           .select('*')
           .or(`email.eq.${clean},username.eq.${clean}`)
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
           return mapProfileRow(data);
@@ -112,13 +131,7 @@ const UserService = (function () {
       }
     }
 
-    // 2. Fallback to staff directory
-    return CLINIC_STAFF.find(u => 
-      u.email.toLowerCase() === clean || 
-      (u.altEmail && u.altEmail.toLowerCase() === clean) ||
-      u.username.toLowerCase() === clean ||
-      (u.altUsername && u.altUsername.toLowerCase() === clean)
-    ) || null;
+    return null;
   }
 
   function mapProfileRow(row) {
