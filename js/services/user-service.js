@@ -35,10 +35,12 @@ const UserService = (function () {
       accentColor: 'var(--info-badge)'
     },
     {
-      id: '3e18c738-8f50-4fe0-9d30-62d1fa22a52a',
-      email: 'mustajab@test.com',
-      altEmail: 'mustajab@clinic.local',
-      username: 'mustajab',
+      id: 'b05a2636-5ad6-4894-b4ed-e4fb3728a408',
+      email: 'glossar1933@gmail.com',
+      altEmail: 'glossary@clinic.local',
+      username: 'glossar1933',
+      altUsername: 'assis',
+      aliases: ['assis', 'glossary', 'operation', 'assis console', 'glossary console'],
       name: 'Assis Console',
       nameKey: 'officer_mustajab',
       role: 'operation_officer',
@@ -135,6 +137,31 @@ const UserService = (function () {
   }
 
   function mapProfileRow(row) {
+    if (!row) return null;
+
+    // Explicit mapping for Assist Console (Glossary)
+    const isAssist = (
+      row.id === 'b05a2636-5ad6-4894-b4ed-e4fb3728a408' ||
+      (row.email && row.email.toLowerCase() === 'glossar1933@gmail.com') ||
+      (row.username && row.username.toLowerCase() === 'glossar1933')
+    );
+
+    if (isAssist) {
+      return {
+        id: row.id || 'b05a2636-5ad6-4894-b4ed-e4fb3728a408',
+        email: row.email || 'glossar1933@gmail.com',
+        username: row.username || 'glossar1933',
+        name: 'Assis Console',
+        nameKey: 'officer_mustajab',
+        role: 'operation_officer',
+        roleKey: 'role_asst_officer',
+        office: 'operation',
+        officeNameKey: 'operation_office',
+        initials: 'AC',
+        accentColor: 'var(--warning-badge)'
+      };
+    }
+
     const known = CLINIC_STAFF.find(u => 
       (row.email && (u.email.toLowerCase() === row.email.toLowerCase() || (u.altEmail && u.altEmail.toLowerCase() === row.email.toLowerCase()))) ||
       (row.username && (u.username.toLowerCase() === row.username.toLowerCase() || (u.altUsername && u.altUsername.toLowerCase() === row.username.toLowerCase()))) ||

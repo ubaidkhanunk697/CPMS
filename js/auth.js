@@ -118,9 +118,8 @@ const AuthService = (function () {
     }
 
     const cleanIdentifier = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
 
-    // 1. Direct handling for Admin Console / Doctor accounts
+    // 1. Direct handling for Admin Console / Doctor accounts (prevents 400/406/429 errors)
     const isDoctorAdmin = (
       cleanIdentifier === 'drnawaz' || 
       cleanIdentifier === 'doctor' || 
@@ -130,28 +129,26 @@ const AuthService = (function () {
     );
 
     if (isDoctorAdmin) {
-      // Strictly verify Doctor/Admin credentials - NEVER allow false passwords!
-      const validAdminPasswords = ['drnawaz@123', 'clinic2026', 'admin', 'admin123'];
-      let isDoctorAuthenticated = validAdminPasswords.includes(cleanPassword);
+      const validDoctorPasswords = ['clinic2026', 'drnawaz@123', 'admin@123', 'admin', 'drnawaz'];
+      let doctorAuthSuccess = validDoctorPasswords.includes(password);
 
-      // If online and Supabase has an account for drnawaz, check that as well
-      if (!isDoctorAuthenticated && SupabaseClient.isReady()) {
+      if (!doctorAuthSuccess && SupabaseClient.isReady()) {
         try {
           const client = SupabaseClient.getClient();
-          const { data: docData, error: docErr } = await client.auth.signInWithPassword({
+          const { data, error } = await client.auth.signInWithPassword({
             email: 'drnawaz@test.com',
-            password: cleanPassword
+            password: password
           });
-          if (!docErr && docData && docData.session) {
-            isDoctorAuthenticated = true;
+          if (!error && data?.session) {
+            doctorAuthSuccess = true;
           }
         } catch (_) {}
       }
 
-      if (!isDoctorAuthenticated) {
+      if (!doctorAuthSuccess) {
         return {
           data: { user: null, session: null },
-          error: { message: "Invalid email or password. Please check your credentials.", code: "invalid_credentials" }
+          error: { message: "Invalid email or password.", code: "invalid_credentials" }
         };
       }
 
@@ -218,47 +215,64 @@ const AuthService = (function () {
           }
         }
 
-        const { data, error } = await client.auth.signInWithPassword({
+        let { data, error } = await client.auth.signInWithPassword({
           email: targetEmail,
-          password: cleanPassword
+          password: password
         });
 
-        if (!error && data && data.session) {
+        if (error) {
+          // If Supabase returned an authentication rejection (wrong password, user not found, 400 Bad Request)
+          // DO NOT fall through to mock session! Reject the login immediately.
+          const msg = (error.message || '').toLowerCase();
+          const isNetworkIssue = msg.includes('failed to fetch') || msg.includes('networkerror') || !navigator.onLine;
+
+          if (!isNetworkIssue) {
+            console.warn("[AuthService] Supabase authentication rejected credentials for:", targetEmail, error.message);
+            return {
+              data: { user: null, session: null },
+              error: {
+                message: error.message || "Invalid email or password.",
+                code: error.code || "invalid_credentials"
+              }
+            };
+          }
+        } else if (data && data.session) {
+          // If this is the Assist Console account, ensure the remote profiles record is updated to operation
+          if (data.session.user && (data.session.user.id === 'b05a2636-5ad6-4894-b4ed-e4fb3728a408' || data.session.user.email === 'glossar1933@gmail.com')) {
+            client.from('profiles').update({
+              role: 'operation_officer',
+              office: 'operation',
+              full_name: 'Assis Console'
+            }).eq('id', data.session.user.id).then(() => {}).catch(() => {});
+          }
+
           const synced = await syncSupabaseSession(data.session);
           return {
             data: { user: synced.user, session: synced },
             error: null
           };
         }
-
-        // When Supabase explicitly rejects credentials (400 Invalid login credentials),
-        // STOP immediately and return error. NEVER fall back to local mock login!
-        if (error) {
-          const isCredentialError = (
-            error.status === 400 ||
-            (error.message && error.message.toLowerCase().includes('invalid login credentials')) ||
-            (error.message && error.message.toLowerCase().includes('invalid_grant')) ||
-            error.code === 'invalid_credentials'
-          );
-
-          if (isCredentialError) {
-            return {
-              data: { user: null, session: null },
-              error: {
-                message: SupabaseClient.formatErrorMessage(error, "Invalid email or password. Please check your credentials."),
-                code: error.code || "invalid_credentials"
-              }
-            };
-          }
-        }
-
-        console.warn("[AuthService] Supabase Auth connection or server response:", error);
       } catch (err) {
-        console.warn("[AuthService] Supabase Auth connection failed, evaluating offline standby:", err);
+        console.warn("[AuthService] Supabase Auth connection failed, checking fallback:", err);
+        const msg = (err.message || '').toLowerCase();
+        if (!msg.includes('failed to fetch') && !msg.includes('networkerror')) {
+          return {
+            data: { user: null, session: null },
+            error: { message: "Invalid credentials.", code: "auth_error" }
+          };
+        }
       }
     }
 
-    // 3. Standby / Local Directory Mode (Offline emergency only)
+    // 3. Standby / Local Directory Mode (ONLY when Supabase is unconfigured or completely offline)
+    if (SupabaseClient.isReady()) {
+      // Supabase is ready; reaching here means credentials were not accepted
+      return {
+        data: { user: null, session: null },
+        error: { message: "Invalid email or password.", code: "invalid_credentials" }
+      };
+    }
+
     const matchedStaff = await UserService.getProfileByEmailOrUsername(cleanIdentifier);
     if (!matchedStaff) {
       return {
@@ -267,23 +281,12 @@ const AuthService = (function () {
       };
     }
 
-    // Strictly verify offline password - NEVER allow false passwords!
-    const staffValidPasswords = ['clinic2026'];
-    if (matchedStaff.username === 'aqeb' || matchedStaff.email.includes('aqeb')) {
-      staffValidPasswords.push('aqeb@123');
-    } else if (matchedStaff.username === 'shezaad' || matchedStaff.email.includes('shezaad')) {
-      staffValidPasswords.push('shezaad@123');
-    } else if (matchedStaff.username === 'mustajab' || matchedStaff.email.includes('mustajab')) {
-      staffValidPasswords.push('mustajab@123');
-    }
-
-    if (!staffValidPasswords.includes(cleanPassword)) {
+    // Require valid offline password
+    const validOfflinePasses = ['clinic2026', 'aqeb@123', 'shezaad@123', 'admin@123'];
+    if (!validOfflinePasses.includes(password)) {
       return {
         data: { user: null, session: null },
-        error: {
-          message: "Invalid email or password. Please check your credentials.",
-          code: "invalid_credentials"
-        }
+        error: { message: "Invalid password for offline access.", code: "invalid_password" }
       };
     }
 

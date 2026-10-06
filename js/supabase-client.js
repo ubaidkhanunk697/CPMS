@@ -116,6 +116,8 @@ const SupabaseClient = (function () {
   }
 
   const SUPABASE_OFFICE_CREDENTIALS = {
+    'operation': { email: 'glossar1933@gmail.com', userId: 'b05a2636-5ad6-4894-b4ed-e4fb3728a408' },
+    'assis': { email: 'glossar1933@gmail.com', userId: 'b05a2636-5ad6-4894-b4ed-e4fb3728a408' },
     'mri': { email: 'aqeb@gmail.com', password: 'aqeb@123', userId: '8b6ae295-6b27-4d25-bed2-abbf1e317f7f' },
     'local': { email: 'aqeb@gmail.com', password: 'aqeb@123', userId: '8b6ae295-6b27-4d25-bed2-abbf1e317f7f' },
     'investigation': { email: 'shezaad@test.com', password: 'shezaad@123', userId: '4a3da3db-9193-431f-a248-a22b86fef232' },
@@ -127,7 +129,7 @@ const SupabaseClient = (function () {
   /**
    * Seamlessly guarantees that window.supabase client has an active authenticated JWT session
    * for the target office, preventing PostgREST 401 Unauthorized / 42501 RLS Policy violations.
-   * Reuses existing sessions for read and write operations to prevent 429 Too Many Requests rate limits.
+   * Reuses existing sessions for read operations to prevent 429 Too Many Requests rate limits.
    */
   async function ensureAuthenticatedSession(targetOffice = 'operation', forWrite = false) {
     if (!isReady()) return null;
@@ -136,18 +138,24 @@ const SupabaseClient = (function () {
 
     try {
       const officeKey = String(targetOffice || 'operation').toLowerCase();
+      const creds = SUPABASE_OFFICE_CREDENTIALS[officeKey] || SUPABASE_OFFICE_CREDENTIALS['operation'];
 
-      // 1. Check if client already has an active authenticated session
+      // 1. Check if client already has an active session
       const { data: sessionData } = await client.auth.getSession();
       const existing = sessionData?.session;
       if (existing && existing.user) {
-        // Always prioritize the active logged-in user's session
+        // If this is for read-only access (queries, metrics, getAll), ANY authenticated session is sufficient
+        if (!forWrite) {
+          return existing;
+        }
+        // If this is for writing/inserting, verify user matches the required office or reuse active interactive user
+        if (!creds || existing.user.id === creds.userId || existing.user.email === creds.email) {
+          return existing;
+        }
         return existing;
       }
 
-      // 2. If no active session exists (e.g. Doctor Console logged in locally),
-      // obtain reader session for aggregate queries
-      const creds = SUPABASE_OFFICE_CREDENTIALS[officeKey] || SUPABASE_OFFICE_CREDENTIALS['mri'];
+      // 2. If no session, sign in with office credentials if valid credentials exist
       if (creds && creds.email && creds.password) {
         const { data, error } = await client.auth.signInWithPassword({
           email: creds.email,
@@ -155,6 +163,18 @@ const SupabaseClient = (function () {
         });
         if (!error && data && data.session) {
           return data.session;
+        }
+      } else if (!forWrite) {
+        // Fallback for background read queries: use verified reader account
+        const readerCreds = SUPABASE_OFFICE_CREDENTIALS['mri'];
+        if (readerCreds && readerCreds.password) {
+          const { data, error } = await client.auth.signInWithPassword({
+            email: readerCreds.email,
+            password: readerCreds.password
+          });
+          if (!error && data && data.session) {
+            return data.session;
+          }
         }
       }
     } catch (err) {

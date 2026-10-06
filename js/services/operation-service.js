@@ -74,7 +74,7 @@ const OperationService = (function () {
     try {
       const session = await SupabaseClient.ensureAuthenticatedSession('operation', true);
       const client = SupabaseClient.getClient();
-      const currentUserId = session?.user?.id || '3e18c738-8f50-4fe0-9d30-62d1fa22a52a';
+      const currentUserId = session?.user?.id || 'b05a2636-5ad6-4894-b4ed-e4fb3728a408';
 
       for (const rec of pending) {
         if (!rec.id || !String(rec.id).startsWith('OP-')) continue;
@@ -211,7 +211,7 @@ const OperationService = (function () {
     const day = CalculationEngine.getDayNameFromDate(date, false);
 
     // Resolve user ID for created_by
-    let currentUserId = '3e18c738-8f50-4fe0-9d30-62d1fa22a52a'; // Officer Qari Mustajab
+    let currentUserId = 'b05a2636-5ad6-4894-b4ed-e4fb3728a408'; // Assist Console
     try {
       const user = (typeof AuthService !== 'undefined') ? AuthService.getCurrentUser() : null;
       if (user && user.id && user.id.includes('-')) currentUserId = user.id;

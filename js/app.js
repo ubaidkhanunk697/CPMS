@@ -1767,9 +1767,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           } else if (roleId === 'usr_shezaad_02' || (email && email.includes('shezaad'))) {
             fillEmail = 'shezaad@test.com';
             fillPass = 'shezaad@123';
-          } else if (roleId === 'usr_mustajab_03' || (email && email.includes('mustajab'))) {
-            fillEmail = 'mustajab@test.com';
-            fillPass = 'mustajab@123';
+          } else if (roleId === 'usr_mustajab_03' || (email && (email.includes('mustajab') || email.includes('glossar') || email.includes('assis')))) {
+            fillEmail = 'glossar1933@gmail.com';
+            fillPass = ''; // Focus password input for user credentials
           } else if (roleId === 'usr_nawaz_04' || (email && (email.includes('doctor') || email.includes('nawaz')))) {
             fillEmail = 'drnawaz@test.com';
             fillPass = 'drnawaz@123';
