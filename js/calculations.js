@@ -177,13 +177,30 @@ const CalculationEngine = (function () {
     const medicine = Math.max(0, Number(optionalData.medicine ?? optionalData.medicine_expense ?? optionalData.medicineExpense) || 0);
 
     // 1. Net to Pay Sx Day
-    const netToPaySxDay = payment - submittedPayment - admissionSlip - assistantFee;
+    const computedNetSx = payment - submittedPayment - admissionSlip - assistantFee;
+    const netToPaySxDay = (optionalData.netToPaySxDay !== undefined && optionalData.netToPaySxDay !== null && Number(optionalData.netToPaySxDay) !== 0)
+      ? Number(optionalData.netToPaySxDay)
+      : ((optionalData.net_pay_sx_day !== undefined && optionalData.net_pay_sx_day !== null && Number(optionalData.net_pay_sx_day) !== 0)
+        ? Number(optionalData.net_pay_sx_day)
+        : computedNetSx);
 
     // 2. Net Pay Later
-    const netPayLater = hduIcu - medicine;
+    const computedNetLater = hduIcu - medicine;
+    const netPayLater = (hduIcu !== 0 || medicine !== 0)
+      ? computedNetLater
+      : ((optionalData.netPayLater !== undefined && optionalData.netPayLater !== null && Number(optionalData.netPayLater) !== 0)
+        ? Number(optionalData.netPayLater)
+        : ((optionalData.net_pay_later !== undefined && optionalData.net_pay_later !== null && Number(optionalData.net_pay_later) !== 0)
+          ? Number(optionalData.net_pay_later)
+          : computedNetLater));
 
     // 3. Final Total
-    const finalTotal = netToPaySxDay + netPayLater;
+    const computedFinal = netToPaySxDay + netPayLater;
+    const finalTotal = (optionalData.finalTotal !== undefined && optionalData.finalTotal !== null && Number(optionalData.finalTotal) !== 0)
+      ? Number(optionalData.finalTotal)
+      : ((optionalData.final_total !== undefined && optionalData.final_total !== null && Number(optionalData.final_total) !== 0)
+        ? Number(optionalData.final_total)
+        : computedFinal);
 
     return {
       payment,

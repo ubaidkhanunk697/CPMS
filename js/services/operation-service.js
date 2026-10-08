@@ -24,8 +24,23 @@ const OperationService = (function () {
       admissionSlip,
       assistantFee,
       hduIcu,
-      medicine
+      medicine,
+      netToPaySxDay: row.net_pay_sx_day,
+      netPayLater: row.net_pay_later,
+      finalTotal: row.final_total
     });
+
+    const netToPaySxDay = (row.net_pay_sx_day !== undefined && row.net_pay_sx_day !== null && Number(row.net_pay_sx_day) !== 0)
+      ? Number(row.net_pay_sx_day)
+      : calc.netToPaySxDay;
+
+    const netPayLater = (row.net_pay_later !== undefined && row.net_pay_later !== null && Number(row.net_pay_later) !== 0)
+      ? Number(row.net_pay_later)
+      : calc.netPayLater;
+
+    const finalTotal = (row.final_total !== undefined && row.final_total !== null && Number(row.final_total) !== 0)
+      ? Number(row.final_total)
+      : calc.finalTotal;
 
     return {
       id: String(row.id),
@@ -40,9 +55,9 @@ const OperationService = (function () {
       assistant: assistantFee,
       hduIcu: hduIcu,
       medicine: medicine,
-      netToPaySxDay: calc.netToPaySxDay,
-      netPayLater: calc.netPayLater,
-      finalTotal: calc.finalTotal,
+      netToPaySxDay: netToPaySxDay,
+      netPayLater: netPayLater,
+      finalTotal: finalTotal,
       doctorAmount: payment, // 100% to Doctor
       officeShare: 0,
       date: row.date || CalculationEngine.getTodayDateString(),
@@ -79,10 +94,34 @@ const OperationService = (function () {
       for (const rec of pending) {
         if (!rec.id || !String(rec.id).startsWith('OP-')) continue;
         const opType = (rec.operationType || rec.operationName || 'Surgical Procedure').trim();
-        const basePayload = {
+        const payment = Number(rec.payment || rec.receivedPayment || 0);
+        const submittedPayment = Math.max(0, Number(rec.submittedPayment) || 0);
+        const admissionSlip = Math.max(0, Number(rec.admissionSlip) || 0);
+        const assistantFee = Math.max(0, Number(rec.assistantFee ?? rec.assistant) || 0);
+        const hduIcu = Math.max(0, Number(rec.hduIcu) || 0);
+        const medicine = Math.max(0, Number(rec.medicine) || 0);
+
+        const calc = CalculationEngine.calculateOperationShare(payment, {
+          submittedPayment,
+          admissionSlip,
+          assistantFee,
+          hduIcu,
+          medicine
+        });
+
+        const fullPayload = {
           patient_name: rec.patientName,
           operation_name: opType,
-          payment_amount: Number(rec.payment || rec.receivedPayment || 0),
+          operation_type: opType,
+          payment_amount: payment,
+          submitted_payment: submittedPayment,
+          admission_slip: admissionSlip,
+          assistant_fee: assistantFee,
+          hdu_icu: hduIcu,
+          medicine: medicine,
+          net_pay_sx_day: calc.netToPaySxDay,
+          net_pay_later: calc.netPayLater,
+          final_total: calc.finalTotal,
           date: rec.date || CalculationEngine.getTodayDateString(),
           day: rec.day || CalculationEngine.getDayNameFromDate(rec.date, false),
           created_by: currentUserId
@@ -90,23 +129,22 @@ const OperationService = (function () {
 
         const res = await client
           .from('operation_payments')
-          .insert([basePayload])
+          .insert([fullPayload])
           .select()
           .single();
 
         if (!res.error && res.data) {
           const mapped = mapRowToModel(res.data);
           mapped.operationType = opType;
-          mapped.submittedPayment = rec.submittedPayment;
-          mapped.admissionSlip = rec.admissionSlip;
-          mapped.assistantFee = rec.assistantFee;
-          mapped.assistant = rec.assistant;
-          mapped.hduIcu = rec.hduIcu;
-          mapped.medicine = rec.medicine;
-          const c = CalculationEngine.calculateOperationShare(mapped.payment, mapped);
-          mapped.netToPaySxDay = c.netToPaySxDay;
-          mapped.netPayLater = c.netPayLater;
-          mapped.finalTotal = c.finalTotal;
+          mapped.submittedPayment = submittedPayment;
+          mapped.admissionSlip = admissionSlip;
+          mapped.assistantFee = assistantFee;
+          mapped.assistant = assistantFee;
+          mapped.hduIcu = hduIcu;
+          mapped.medicine = medicine;
+          mapped.netToPaySxDay = calc.netToPaySxDay;
+          mapped.netPayLater = calc.netPayLater;
+          mapped.finalTotal = calc.finalTotal;
 
           const current = getLocalRecords();
           const updated = current.map(r => String(r.id) === String(rec.id) ? mapped : r);
@@ -162,9 +200,15 @@ const OperationService = (function () {
                   : Number(local.medicine || 0);
               }
               const c = CalculationEngine.calculateOperationShare(m.payment, m);
-              m.netToPaySxDay = c.netToPaySxDay;
-              m.netPayLater = c.netPayLater;
-              m.finalTotal = c.finalTotal;
+              m.netToPaySxDay = (row.net_pay_sx_day !== undefined && row.net_pay_sx_day !== null && Number(row.net_pay_sx_day) !== 0)
+                ? Number(row.net_pay_sx_day)
+                : c.netToPaySxDay;
+              m.netPayLater = (row.net_pay_later !== undefined && row.net_pay_later !== null && Number(row.net_pay_later) !== 0)
+                ? Number(row.net_pay_later)
+                : c.netPayLater;
+              m.finalTotal = (row.final_total !== undefined && row.final_total !== null && Number(row.final_total) !== 0)
+                ? Number(row.final_total)
+                : c.finalTotal;
               return m;
             });
 
@@ -217,10 +261,27 @@ const OperationService = (function () {
       if (user && user.id && user.id.includes('-')) currentUserId = user.id;
     } catch (_) {}
 
-    const basePayload = {
+    const calc = CalculationEngine.calculateOperationShare(payment, {
+      submittedPayment,
+      admissionSlip,
+      assistantFee,
+      hduIcu,
+      medicine
+    });
+
+    const fullPayload = {
       patient_name: recordData.patientName.trim(),
       operation_name: opType,
+      operation_type: opType,
       payment_amount: payment,
+      submitted_payment: submittedPayment,
+      admission_slip: admissionSlip,
+      assistant_fee: assistantFee,
+      hdu_icu: hduIcu,
+      medicine: medicine,
+      net_pay_sx_day: calc.netToPaySxDay,
+      net_pay_later: calc.netPayLater,
+      final_total: calc.finalTotal,
       date: date,
       day: day,
       created_by: currentUserId
@@ -230,12 +291,12 @@ const OperationService = (function () {
       try {
         const session = await SupabaseClient.ensureAuthenticatedSession('operation', true);
         if (session?.user?.id) {
-          basePayload.created_by = session.user.id;
+          fullPayload.created_by = session.user.id;
         }
         const client = SupabaseClient.getClient();
         const res = await client
           .from('operation_payments')
-          .insert([basePayload])
+          .insert([fullPayload])
           .select()
           .single();
 
@@ -243,7 +304,7 @@ const OperationService = (function () {
           console.warn("[OperationService] Supabase insert warning:", res.error);
         } else if (res.data) {
           const mapped = mapRowToModel(res.data);
-          // Preserve all optional fields in local storage record
+          // Preserve all optional & calculated fields
           mapped.operationType = opType;
           mapped.submittedPayment = submittedPayment;
           mapped.admissionSlip = admissionSlip;
@@ -251,11 +312,9 @@ const OperationService = (function () {
           mapped.assistant = assistantFee;
           mapped.hduIcu = hduIcu;
           mapped.medicine = medicine;
-
-          const c = CalculationEngine.calculateOperationShare(mapped.payment, mapped);
-          mapped.netToPaySxDay = c.netToPaySxDay;
-          mapped.netPayLater = c.netPayLater;
-          mapped.finalTotal = c.finalTotal;
+          mapped.netToPaySxDay = calc.netToPaySxDay;
+          mapped.netPayLater = calc.netPayLater;
+          mapped.finalTotal = calc.finalTotal;
 
           const current = getLocalRecords();
           const filtered = current.filter(r => String(r.id) !== String(mapped.id));
@@ -269,17 +328,9 @@ const OperationService = (function () {
     }
 
     // Local Storage Fallback
-    const localCalc = CalculationEngine.calculateOperationShare(payment, {
-      submittedPayment,
-      admissionSlip,
-      assistantFee,
-      assistant: assistantFee,
-      hduIcu,
-      medicine
-    });
     const localRecord = {
       id: 'OP-' + Date.now().toString(36).toUpperCase(),
-      patientName: basePayload.patient_name,
+      patientName: fullPayload.patient_name,
       operationType: opType,
       operationName: opType,
       payment: payment,
@@ -292,13 +343,13 @@ const OperationService = (function () {
       medicine: medicine,
       doctorAmount: payment,
       officeShare: 0,
-      netToPaySxDay: localCalc.netToPaySxDay,
-      netPayLater: localCalc.netPayLater,
-      finalTotal: localCalc.finalTotal,
-      date: basePayload.date,
-      day: basePayload.day,
+      netToPaySxDay: calc.netToPaySxDay,
+      netPayLater: calc.netPayLater,
+      finalTotal: calc.finalTotal,
+      date: fullPayload.date,
+      day: fullPayload.day,
       createdAt: new Date().toISOString(),
-      createdBy: basePayload.created_by
+      createdBy: fullPayload.created_by
     };
     const current = getLocalRecords();
     current.unshift(localRecord);
@@ -314,14 +365,31 @@ const OperationService = (function () {
     const assistantFee = Math.max(0, Number(updates.assistantFee ?? updates.assistant) || 0);
     const hduIcu = Math.max(0, Number(updates.hduIcu) || 0);
     const medicine = Math.max(0, Number(updates.medicine) || 0);
-    const opType = (updates.operationType || updates.operationName || updates.patient_name || '').trim();
+    const opType = (updates.operationType || updates.operationName || updates.patient_name || 'Surgical Procedure').trim();
     const date = updates.date || CalculationEngine.getTodayDateString();
     const day = CalculationEngine.getDayNameFromDate(date, false);
 
-    const basePayload = {
+    const calc = CalculationEngine.calculateOperationShare(payment, {
+      submittedPayment,
+      admissionSlip,
+      assistantFee,
+      hduIcu,
+      medicine
+    });
+
+    const fullPayload = {
       patient_name: (updates.patientName || updates.patient_name || '').trim(),
       operation_name: opType,
+      operation_type: opType,
       payment_amount: payment,
+      submitted_payment: submittedPayment,
+      admission_slip: admissionSlip,
+      assistant_fee: assistantFee,
+      hdu_icu: hduIcu,
+      medicine: medicine,
+      net_pay_sx_day: calc.netToPaySxDay,
+      net_pay_later: calc.netPayLater,
+      final_total: calc.finalTotal,
       date: date,
       day: day
     };
@@ -332,7 +400,7 @@ const OperationService = (function () {
         const client = SupabaseClient.getClient();
         const res = await client
           .from('operation_payments')
-          .update(basePayload)
+          .update(fullPayload)
           .eq('id', id)
           .select()
           .single();
@@ -346,11 +414,9 @@ const OperationService = (function () {
           mapped.assistant = assistantFee;
           mapped.hduIcu = hduIcu;
           mapped.medicine = medicine;
-
-          const c = CalculationEngine.calculateOperationShare(mapped.payment, mapped);
-          mapped.netToPaySxDay = c.netToPaySxDay;
-          mapped.netPayLater = c.netPayLater;
-          mapped.finalTotal = c.finalTotal;
+          mapped.netToPaySxDay = calc.netToPaySxDay;
+          mapped.netPayLater = calc.netPayLater;
+          mapped.finalTotal = calc.finalTotal;
 
           const current = getLocalRecords().map(r => r.id === String(id) ? mapped : r);
           saveLocalRecords(current);
@@ -365,17 +431,9 @@ const OperationService = (function () {
     const current = getLocalRecords();
     const index = current.findIndex(r => r.id === String(id));
     if (index !== -1) {
-      const localCalc = CalculationEngine.calculateOperationShare(payment, {
-        submittedPayment,
-        admissionSlip,
-        assistantFee,
-        assistant: assistantFee,
-        hduIcu,
-        medicine
-      });
       current[index] = {
         ...current[index],
-        patientName: basePayload.patient_name,
+        patientName: fullPayload.patient_name,
         operationType: opType,
         operationName: opType,
         payment: payment,
@@ -387,11 +445,11 @@ const OperationService = (function () {
         hduIcu: hduIcu,
         medicine: medicine,
         doctorAmount: payment,
-        netToPaySxDay: localCalc.netToPaySxDay,
-        netPayLater: localCalc.netPayLater,
-        finalTotal: localCalc.finalTotal,
-        date: basePayload.date,
-        day: basePayload.day
+        netToPaySxDay: calc.netToPaySxDay,
+        netPayLater: calc.netPayLater,
+        finalTotal: calc.finalTotal,
+        date: fullPayload.date,
+        day: fullPayload.day
       };
       saveLocalRecords(current);
       return { data: current[index], error: null };

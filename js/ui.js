@@ -524,17 +524,17 @@ const UI = (function () {
           </td>
           <td>
             <span style="font-variant-numeric: tabular-nums; color: #047857; font-weight: 600;">
-              ${CalculationEngine.formatPKR(calc.netToPaySxDay)}
+              ${CalculationEngine.formatPKR((r.netToPaySxDay !== undefined && r.netToPaySxDay !== null) ? r.netToPaySxDay : calc.netToPaySxDay)}
             </span>
           </td>
           <td>
             <span style="font-variant-numeric: tabular-nums; color: #B45309; font-weight: 600;">
-              ${CalculationEngine.formatPKR(calc.netPayLater)}
+              ${CalculationEngine.formatPKR((r.netPayLater !== undefined && r.netPayLater !== null) ? r.netPayLater : calc.netPayLater)}
             </span>
           </td>
           <td>
             <strong style="color: #1E40AF; font-variant-numeric: tabular-nums; font-weight: 700;">
-              ${CalculationEngine.formatPKR(calc.finalTotal)}
+              ${CalculationEngine.formatPKR((r.finalTotal !== undefined && r.finalTotal !== null) ? r.finalTotal : calc.finalTotal)}
             </strong>
           </td>
           <td style="font-size: 0.82rem; color: var(--text-secondary); white-space: nowrap;">
@@ -1001,9 +1001,9 @@ const UI = (function () {
             <td style="font-weight: 600; color: var(--navy-900);">${r.patientName}</td>
             <td style="font-weight: 500;">${opType}</td>
             <td><strong style="color: var(--navy-900); font-variant-numeric: tabular-nums;">${CalculationEngine.formatPKR(r.payment || r.receivedPayment)}</strong></td>
-            <td><span style="font-variant-numeric: tabular-nums; color: #047857; font-weight: 600;">${CalculationEngine.formatPKR(calc.netToPaySxDay)}</span></td>
-            <td><span style="font-variant-numeric: tabular-nums; color: #B45309; font-weight: 600;">${CalculationEngine.formatPKR(calc.netPayLater)}</span></td>
-            <td><strong style="color: #1E40AF; font-variant-numeric: tabular-nums; font-weight: 700;">${CalculationEngine.formatPKR(calc.finalTotal)}</strong></td>
+            <td><span style="font-variant-numeric: tabular-nums; color: #047857; font-weight: 600;">${CalculationEngine.formatPKR((r.netToPaySxDay !== undefined && r.netToPaySxDay !== null) ? r.netToPaySxDay : calc.netToPaySxDay)}</span></td>
+            <td><span style="font-variant-numeric: tabular-nums; color: #B45309; font-weight: 600;">${CalculationEngine.formatPKR((r.netPayLater !== undefined && r.netPayLater !== null) ? r.netPayLater : calc.netPayLater)}</span></td>
+            <td><strong style="color: #1E40AF; font-variant-numeric: tabular-nums; font-weight: 700;">${CalculationEngine.formatPKR((r.finalTotal !== undefined && r.finalTotal !== null) ? r.finalTotal : calc.finalTotal)}</strong></td>
             <td style="font-size: 0.82rem; color: var(--text-secondary);">${formattedDate}</td>
             <td><span class="badge" style="background: var(--bg-subtle); color: var(--navy-900);">${r.day}</span></td>
             <td>
