@@ -199,8 +199,21 @@ const UI = (function () {
      3B. MRI Office Dedicated Summary Cards Renderer
      Summary cards: Today's Total Received, Today's MRI Entries, MRI Office Share, Doctor Amount
      ------------------------------------------------------------------------ */
+  function getPeriodLabel(dateRange) {
+    if (dateRange === 'week' || dateRange === 'this_week') return LanguageManager.t('filter_this_week');
+    if (dateRange === 'month' || dateRange === 'this_month') return LanguageManager.t('filter_this_month');
+    if (dateRange === 'all') return LanguageManager.t('filter_all_time');
+    return LanguageManager.t('filter_today');
+  }
+
+  /* ------------------------------------------------------------------------
+     3B. MRI Office Dedicated Summary Cards Renderer
+     Officer: Aqeb Khan
+     Summary cards: Total Received, MRI Entries, MRI Office Share, Doctor Amount
+     ------------------------------------------------------------------------ */
   function renderMRISummaryCards(container, metrics) {
     if (!container) return;
+    const periodLabel = getPeriodLabel(metrics.dateRange);
 
     const cards = [
       {
@@ -213,7 +226,10 @@ const UI = (function () {
       },
       {
         key: 'kpi_today_mri_entries',
-        title: LanguageManager.t('kpi_today_mri_entries'),
+        title: (metrics.dateRange === 'week' ? (LanguageManager.isRTL() ? 'اس ہفتے کے اندراجات' : "This Week's Entries") :
+               metrics.dateRange === 'month' ? (LanguageManager.isRTL() ? 'اس ماہ کے اندراجات' : "This Month's Entries") :
+               metrics.dateRange === 'all' ? (LanguageManager.isRTL() ? 'کل اندراجات' : "All Entries") :
+               LanguageManager.t('kpi_today_mri_entries')),
         value: `${metrics.todayEntriesCount}`,
         accent: 'accent-amber',
         footer: `${metrics.allTimeEntriesCount} ${LanguageManager.t('kpi_cases_count')}`,
@@ -240,7 +256,8 @@ const UI = (function () {
     container.innerHTML = cards.map(c => `
       <div class="kpi-card ${c.accent}">
         <div class="kpi-header">
-          <span class="kpi-title" data-i18n="${c.key}">${c.title}</span>
+          <span class="kpi-title">${c.title}</span>
+          <span class="badge badge-office" style="font-size: 0.65rem; padding: 2px 6px; margin-left: auto; margin-right: 6px;">${periodLabel}</span>
           <div class="kpi-icon-wrap">${c.icon}</div>
         </div>
         <div class="kpi-value">${c.value}</div>
@@ -254,10 +271,11 @@ const UI = (function () {
   /* ------------------------------------------------------------------------
      3C. Investigation Office Dedicated Summary Cards Renderer
      Officer: Shezaad
-     Summary cards: Today's Total Received, Today's Investigation Entries, Doctor Amount (100%)
+     Summary cards: Total Received, Investigation Entries, Doctor Amount (100%)
      ------------------------------------------------------------------------ */
   function renderInvestigationSummaryCards(container, metrics) {
     if (!container) return;
+    const periodLabel = getPeriodLabel(metrics.dateRange);
 
     const cards = [
       {
@@ -270,7 +288,10 @@ const UI = (function () {
       },
       {
         key: 'kpi_today_inv_entries',
-        title: LanguageManager.t('kpi_today_inv_entries'),
+        title: (metrics.dateRange === 'week' ? (LanguageManager.isRTL() ? 'اس ہفتے کے اندراجات' : "This Week's Entries") :
+               metrics.dateRange === 'month' ? (LanguageManager.isRTL() ? 'اس ماہ کے اندراجات' : "This Month's Entries") :
+               metrics.dateRange === 'all' ? (LanguageManager.isRTL() ? 'کل اندراجات' : "All Entries") :
+               LanguageManager.t('kpi_today_inv_entries')),
         value: `${metrics.todayEntriesCount}`,
         accent: 'accent-amber',
         footer: `${metrics.allTimeEntriesCount} ${LanguageManager.t('kpi_cases_count')}`,
@@ -289,7 +310,8 @@ const UI = (function () {
     container.innerHTML = cards.map(c => `
       <div class="kpi-card ${c.accent}">
         <div class="kpi-header">
-          <span class="kpi-title" data-i18n="${c.key}">${c.title}</span>
+          <span class="kpi-title">${c.title}</span>
+          <span class="badge badge-office" style="font-size: 0.65rem; padding: 2px 6px; margin-left: auto; margin-right: 6px;">${periodLabel}</span>
           <div class="kpi-icon-wrap">${c.icon}</div>
         </div>
         <div class="kpi-value">${c.value}</div>
@@ -303,10 +325,11 @@ const UI = (function () {
   /* ------------------------------------------------------------------------
      3D. Operation/Assistant Office Dedicated Summary Cards Renderer
      Officer: Qari Mustajab
-     Summary cards: Final Total, Net to Pay Sx Day, Net Pay Later, Today's Operation Entries
+     Summary cards: Final Total, Net to Pay Sx Day, Net Pay Later, Operation Entries
      ------------------------------------------------------------------------ */
   function renderOperationSummaryCards(container, metrics) {
     if (!container) return;
+    const periodLabel = getPeriodLabel(metrics.dateRange);
 
     const cards = [
       {
@@ -335,7 +358,10 @@ const UI = (function () {
       },
       {
         key: 'kpi_today_op_entries',
-        title: LanguageManager.t('kpi_today_op_entries'),
+        title: (metrics.dateRange === 'week' ? (LanguageManager.isRTL() ? 'اس ہفتے کے اندراجات' : "This Week's Entries") :
+               metrics.dateRange === 'month' ? (LanguageManager.isRTL() ? 'اس ماہ کے اندراجات' : "This Month's Entries") :
+               metrics.dateRange === 'all' ? (LanguageManager.isRTL() ? 'کل اندراجات' : "All Entries") :
+               LanguageManager.t('kpi_today_op_entries')),
         value: `${metrics.todayEntriesCount}`,
         accent: 'accent-red',
         footer: `${metrics.allTimeEntriesCount || metrics.todayEntriesCount} ${LanguageManager.t('kpi_cases_count')}`,
@@ -346,7 +372,8 @@ const UI = (function () {
     container.innerHTML = cards.map(c => `
       <div class="kpi-card ${c.accent}">
         <div class="kpi-header">
-          <span class="kpi-title" data-i18n="${c.key}">${c.title}</span>
+          <span class="kpi-title">${c.title}</span>
+          <span class="badge badge-office" style="font-size: 0.65rem; padding: 2px 6px; margin-left: auto; margin-right: 6px;">${periodLabel}</span>
           <div class="kpi-icon-wrap">${c.icon}</div>
         </div>
         <div class="kpi-value">${c.value}</div>

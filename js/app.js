@@ -482,7 +482,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Fetch MRI metrics and records concurrently
       const [metrics, records] = await Promise.all([
-        ClinicRepository.getMRISummaryMetrics(),
+        ClinicRepository.getMRISummaryMetrics(currentFilters.dateRange || 'all'),
         ClinicRepository.getMRIRecords(currentFilters)
       ]);
 
@@ -530,7 +530,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Fetch Investigation metrics and records concurrently
       const [metrics, records] = await Promise.all([
-        ClinicRepository.getInvestigationSummaryMetrics(),
+        ClinicRepository.getInvestigationSummaryMetrics(currentFilters.dateRange || 'all'),
         ClinicRepository.getInvestigationRecords(currentFilters)
       ]);
 
@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Fetch Operation metrics and records concurrently
       const [metrics, records] = await Promise.all([
-        ClinicRepository.getOperationSummaryMetrics(),
+        ClinicRepository.getOperationSummaryMetrics(currentFilters.dateRange || 'all'),
         ClinicRepository.getOperationRecords(currentFilters)
       ]);
 
@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Fetch standard metrics and transactions
       const [metrics, transactions] = await Promise.all([
-        ClinicRepository.getMetrics(activeOfficeId),
+        ClinicRepository.getMetrics(activeOfficeId, currentFilters.dateRange || 'all'),
         ClinicRepository.getTransactions(activeOfficeId, currentFilters)
       ]);
 
@@ -1390,52 +1390,247 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Export Report CSV (Handles MRI, Investigation, Operation, Doctor, and Standard Transactions)
+  /**
+   * Generates and downloads a clean, printable PDF statement matching the sketch layout:
+   * Header: Office Name (Centered)
+   * Subheader: Date (Left), Day (Right)
+   * Table: S.No | P Name | Service | Received | Net Sx Day | Net Pay Later | Final Total | Date
+   * Footer: Totals for numeric columns
+   */
+  async function exportReportPDF(isDoctorDashboard = false) {
+    try {
+      const activeOffice = NavigationManager.getActiveOfficeId();
+      let records = [];
+      let officeDisplayName = "Glossary Office";
+
+      if (isDoctorDashboard || activeOffice === 'doctor') {
+        const tab = doctorActiveTab;
+        records = await ClinicRepository.getDoctorFilteredRecords(tab, doctorDateFilter);
+        if (tab === 'operation' || tab === 'assistant') {
+          officeDisplayName = LanguageManager.t('operation_office') || 'Assis Office';
+        } else if (tab === 'mri') {
+          officeDisplayName = LanguageManager.t('mri_office') || 'Local Office';
+        } else if (tab === 'investigation') {
+          officeDisplayName = LanguageManager.t('investigation_office') || 'Constraction Office';
+        } else {
+          officeDisplayName = LanguageManager.t('doctor_office') || 'Head Office';
+        }
+      } else if (activeOffice === 'operation') {
+        officeDisplayName = LanguageManager.t('operation_office') || 'Assis Office';
+        records = await ClinicRepository.getOperationRecords(currentFilters);
+      } else if (activeOffice === 'mri') {
+        officeDisplayName = LanguageManager.t('mri_office') || 'Local Office';
+        records = await ClinicRepository.getMRIRecords(currentFilters);
+      } else if (activeOffice === 'investigation') {
+        officeDisplayName = LanguageManager.t('investigation_office') || 'Constraction Office';
+        records = await ClinicRepository.getInvestigationRecords(currentFilters);
+      } else {
+        officeDisplayName = 'Glossary Office';
+        records = await ClinicRepository.getTransactions({ office: activeOffice, ...currentFilters });
+      }
+
+      if (!records || records.length === 0) {
+        UI.Toast.info("No records found to export for the selected filter.");
+        return;
+      }
+
+      const todayStr = CalculationEngine.getTodayDateString();
+      const todayDayName = CalculationEngine.getDayNameFromDate(todayStr, false);
+
+      const activeDateFilter = isDoctorDashboard ? doctorDateFilter : (currentFilters.dateRange || 'all');
+      let headerDateStr = todayStr;
+      let headerDayStr = todayDayName;
+
+      if (activeDateFilter === 'week' || activeDateFilter === 'this_week') {
+        headerDateStr = `Current Week (${todayStr})`;
+        headerDayStr = todayDayName;
+      } else if (activeDateFilter === 'month' || activeDateFilter === 'this_month') {
+        const now = new Date();
+        const monthName = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        headerDateStr = `${monthName} (${todayStr})`;
+        headerDayStr = todayDayName;
+      } else if (activeDateFilter === 'yesterday') {
+        const yestStr = CalculationEngine.getYesterdayDateString();
+        headerDateStr = yestStr;
+        headerDayStr = CalculationEngine.getDayNameFromDate(yestStr, false);
+      } else if (activeDateFilter === 'today') {
+        headerDateStr = todayStr;
+        headerDayStr = todayDayName;
+      } else {
+        headerDateStr = `All Time (${todayStr})`;
+        headerDayStr = todayDayName;
+      }
+
+      let totalReceived = 0;
+      let totalNetSxDay = 0;
+      let totalNetPayLater = 0;
+      let totalFinalTotal = 0;
+
+      const isOp = (activeOffice === 'operation' || (isDoctorDashboard && (doctorActiveTab === 'assistant' || doctorActiveTab === 'operation')));
+      const isMri = (activeOffice === 'mri' || (isDoctorDashboard && doctorActiveTab === 'mri'));
+      const isInv = (activeOffice === 'investigation' || (isDoctorDashboard && doctorActiveTab === 'investigation'));
+
+      const tableBody = records.map((r, idx) => {
+        const sNo = String(idx + 1);
+        const patientName = r.patientName || 'Unknown Patient';
+        let serviceName = '';
+        let received = 0;
+        let netSxDay = 0;
+        let netPayLater = 0;
+        let finalTotal = 0;
+
+        if (isOp) {
+          serviceName = r.operationType || r.operationName || 'Operation';
+          const c = CalculationEngine.calculateOperationShare(r.payment || r.receivedPayment, r);
+          received = c.receivedPayment;
+          netSxDay = c.netToPaySxDay;
+          netPayLater = c.netPayLater;
+          finalTotal = c.finalTotal;
+        } else if (isMri) {
+          serviceName = r.mriType || 'Local MRI';
+          received = Number(r.payment) || 0;
+          netSxDay = Number(r.officeShare) || 0;
+          netPayLater = 0;
+          finalTotal = Number(r.doctorAmount) || 0;
+        } else if (isInv) {
+          serviceName = r.testName || 'Investigation Test';
+          received = Number(r.payment) || 0;
+          netSxDay = 0;
+          netPayLater = 0;
+          finalTotal = Number(r.doctorAmount) || Number(r.payment) || 0;
+        } else {
+          serviceName = r.service || 'Service';
+          received = Number(r.totalFee || r.payment || 0);
+          netSxDay = Number(r.officeShare || 0);
+          netPayLater = 0;
+          finalTotal = Number(r.paidAmount || r.doctorAmount || 0);
+        }
+
+        totalReceived += received;
+        totalNetSxDay += netSxDay;
+        totalNetPayLater += netPayLater;
+        totalFinalTotal += finalTotal;
+
+        return [
+          sNo,
+          patientName,
+          serviceName,
+          CalculationEngine.formatPKR(received),
+          CalculationEngine.formatPKR(netSxDay),
+          CalculationEngine.formatPKR(netPayLater),
+          CalculationEngine.formatPKR(finalTotal),
+          r.date || CalculationEngine.formatDate(r.createdAt)
+        ];
+      });
+
+      const tableFoot = [
+        [
+          'Total',
+          '',
+          `${records.length} Cases`,
+          CalculationEngine.formatPKR(totalReceived),
+          CalculationEngine.formatPKR(totalNetSxDay),
+          CalculationEngine.formatPKR(totalNetPayLater),
+          CalculationEngine.formatPKR(totalFinalTotal),
+          ''
+        ]
+      ];
+
+      const jspdfModule = window.jspdf;
+      if (!jspdfModule || !jspdfModule.jsPDF) {
+        throw new Error("PDF generator module not available");
+      }
+
+      const { jsPDF } = jspdfModule;
+      if (window.jspdfAutoTable && window.jspdfAutoTable.applyPlugin) {
+        window.jspdfAutoTable.applyPlugin(jsPDF);
+      }
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      // Title (Centered) matching the drawing "Office Name"
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(30, 41, 59);
+      doc.text(officeDisplayName, 148.5, 16, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('(Glossary Payment System)', 148.5, 22, { align: 'center' });
+
+      // Subheader: Date on left, Day on right
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Date:  ${headerDateStr}`, 15, 31);
+      doc.text(`Day:  ${headerDayStr}`, 282, 31, { align: 'right' });
+
+      doc.autoTable({
+        startY: 35,
+        margin: { left: 15, right: 15 },
+        theme: 'grid',
+        head: [['S.No', 'P Name', 'Service', 'Received', 'Net Sx Day', 'Net Pay Later', 'Final Total', 'Date']],
+        body: tableBody,
+        foot: tableFoot,
+        headStyles: {
+          fillColor: [30, 41, 59],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 9.5
+        },
+        footStyles: {
+          fillColor: [241, 245, 249],
+          textColor: [15, 23, 42],
+          fontStyle: 'bold',
+          fontSize: 9.5
+        },
+        bodyStyles: {
+          textColor: [30, 41, 59],
+          fontSize: 9
+        },
+        styles: {
+          font: 'helvetica',
+          cellPadding: 3,
+          lineColor: [148, 163, 184],
+          lineWidth: 0.15
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 }, // S.No
+          1: { halign: 'left', cellWidth: 48 },   // P Name
+          2: { halign: 'left', cellWidth: 50 },   // Service
+          3: { halign: 'right', cellWidth: 32 },  // Received
+          4: { halign: 'right', cellWidth: 32 },  // Net Sx Day
+          5: { halign: 'right', cellWidth: 32 },  // Net Pay Later
+          6: { halign: 'right', cellWidth: 35 },  // Final Total
+          7: { halign: 'center', cellWidth: 26 }  // Date
+        },
+        didDrawPage: function (data) {
+          const pageStr = 'Page ' + doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100);
+          doc.text(pageStr, 148.5, 203, { align: 'center' });
+        }
+      });
+
+      const cleanName = officeDisplayName.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `${cleanName}_Report_${todayStr}.pdf`;
+      doc.save(fileName);
+      UI.Toast.success(`Report downloaded as PDF (${fileName})`);
+
+    } catch (err) {
+      console.error("PDF export error:", err);
+      UI.Toast.error("Failed to export PDF: " + (err.message || "Unknown error"));
+    }
+  }
+
+  // Export Report PDF Button Listener
   if (btnExport) {
     btnExport.addEventListener('click', async () => {
       const activeOffice = NavigationManager.getActiveOfficeId();
-      if (activeOffice === 'doctor') {
-        await exportDoctorReportCSV();
-        return;
-      }
-      let csvContent = "data:text/csv;charset=utf-8,";
-
-      if (activeOffice === 'mri') {
-        const records = await ClinicRepository.getMRIRecords();
-        csvContent += "ID,Patient Name,MRI Type,Payment,MRI Office Share,Doctor Amount,Date,Day\n";
-        records.forEach(r => {
-          csvContent += `"${r.id}","${r.patientName}","${r.mriType}",${r.payment},${r.officeShare},${r.doctorAmount},"${r.date}","${r.day}"\n`;
-        });
-      } else if (activeOffice === 'investigation') {
-        const records = await ClinicRepository.getInvestigationRecords();
-        csvContent += "ID,Patient Name,Test Name,Payment,Doctor Amount,Date,Day\n";
-        records.forEach(r => {
-          csvContent += `"${r.id}","${r.patientName}","${r.testName}",${r.payment},${r.doctorAmount},"${r.date}","${r.day}"\n`;
-        });
-      } else if (activeOffice === 'operation') {
-        const records = await ClinicRepository.getOperationRecords();
-        csvContent += "ID,Patient Name,Operation Type,Received Payment,Submitted Payment,Net to Pay Sx Day,Net Pay Later,Final Total,Doctor Amount,Date,Day\n";
-        records.forEach(r => {
-          const c = CalculationEngine.calculateOperationShare(r.payment || r.receivedPayment, r);
-          csvContent += `"${r.id}","${r.patientName}","${r.operationType || r.operationName}",${c.receivedPayment},${c.submittedPayment},${c.netToPaySxDay},${c.netPayLater},${c.finalTotal},${c.doctorAmount},"${r.date}","${r.day}"\n`;
-        });
-      } else {
-        const transactions = await ClinicRepository.getTransactions(activeOffice);
-        csvContent += "ID,Office,Patient Name,Contact,Service,Total Fee,Doctor Share,Office Share,Paid Amount,Remaining Due,Status,Date\n";
-        transactions.forEach(t => {
-          csvContent += `"${t.id}","${t.officeId}","${t.patientName}","${t.patientContact || ''}","${t.service}",${t.totalFee},${t.doctorAmount},${t.officeAmount},${t.paidAmount},${t.remainingBalance},"${t.status}","${t.date}"\n`;
-        });
-      }
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Clinic_Payments_${activeOffice}_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      UI.Toast.success("Financial statement exported as CSV.");
+      await exportReportPDF(activeOffice === 'doctor');
     });
   }
 
@@ -1635,7 +1830,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (btnDoctorExport) {
-    btnDoctorExport.addEventListener('click', exportDoctorReportCSV);
+    btnDoctorExport.addEventListener('click', () => exportReportPDF(true));
   }
 
   // ==========================================================================

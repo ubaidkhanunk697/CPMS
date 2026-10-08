@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clinic-pay-v15';
+const CACHE_NAME = 'clinic-pay-v16';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,6 +6,8 @@ const ASSETS_TO_CACHE = [
   './css/style.css',
   './css/components.css',
   './css/responsive.css',
+  './js/jspdf.umd.min.js',
+  './js/jspdf.plugin.autotable.min.js',
   './js/supabase-config.js',
   './js/supabase-client.js',
   './js/services/user-service.js',

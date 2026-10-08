@@ -126,9 +126,9 @@ const ClinicRepository = (function () {
     return true;
   }
 
-  async function getMRISummaryMetrics() {
+  async function getMRISummaryMetrics(dateRange = 'today') {
     const records = await MRIService.getAll();
-    return CalculationEngine.calculateMRISummaryMetrics(records);
+    return CalculationEngine.calculateMRISummaryMetrics(records, dateRange);
   }
 
   // --------------------------------------------------------------------------
@@ -180,9 +180,9 @@ const ClinicRepository = (function () {
     return true;
   }
 
-  async function getInvestigationSummaryMetrics() {
+  async function getInvestigationSummaryMetrics(dateRange = 'today') {
     const records = await InvestigationService.getAll();
-    return CalculationEngine.calculateInvestigationSummaryMetrics(records);
+    return CalculationEngine.calculateInvestigationSummaryMetrics(records, dateRange);
   }
 
   // --------------------------------------------------------------------------
@@ -243,9 +243,9 @@ const ClinicRepository = (function () {
     return true;
   }
 
-  async function getOperationSummaryMetrics() {
+  async function getOperationSummaryMetrics(dateRange = 'today') {
     const records = await OperationService.getAll();
-    return CalculationEngine.calculateOperationSummaryMetrics(records);
+    return CalculationEngine.calculateOperationSummaryMetrics(records, dateRange);
   }
 
   // --------------------------------------------------------------------------
@@ -396,9 +396,9 @@ const ClinicRepository = (function () {
     return data;
   }
 
-  async function getMetrics(officeId = 'all') {
+  async function getMetrics(officeId = 'all', dateRange = 'all') {
     const txs = await getTransactions({ office: officeId });
-    return CalculationEngine.calculateKPISummary(txs);
+    return CalculationEngine.calculateKPISummary(txs, dateRange);
   }
 
   return {

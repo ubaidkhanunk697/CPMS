@@ -271,35 +271,56 @@ const CalculationEngine = (function () {
   }
 
   /**
+   * Evaluates if a given date string (YYYY-MM-DD or ISO) falls within the current calendar month
+   */
+  function isDateInThisMonth(dateStr) {
+    if (!dateStr) return false;
+    const cleanStr = (typeof dateStr === 'string' && !dateStr.includes('T')) 
+      ? `${dateStr}T00:00:00` 
+      : dateStr;
+    const d = new Date(cleanStr);
+    if (isNaN(d.getTime())) return false;
+
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }
+
+  /**
    * Calculates MRI summary KPI metrics from records
    */
-  function calculateMRISummaryMetrics(records) {
+  function calculateMRISummaryMetrics(records, dateRange = 'today') {
     if (!Array.isArray(records)) records = [];
-    const today = getTodayDateString();
-    const todayRecords = records.filter(r => (r.date ? r.date === today : (r.createdAt && r.createdAt.startsWith(today))));
-    const todayTotalReceived = todayRecords.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
-    const todayOfficeShare = todayRecords.reduce((sum, r) => sum + (Number(r.officeShare) || 0), 0);
-    const todayDoctorAmount = todayRecords.reduce((sum, r) => sum + (Number(r.doctorAmount) || 0), 0);
+    const filteredRecords = filterRecordsByDateRange(records, dateRange);
+    const todayTotalReceived = filteredRecords.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
+    const todayOfficeShare = filteredRecords.reduce((sum, r) => sum + (Number(r.officeShare) || 0), 0);
+    const todayDoctorAmount = filteredRecords.reduce((sum, r) => sum + (Number(r.doctorAmount) || 0), 0);
+    const allTimeTotalReceived = records.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
     return {
       todayTotalReceived,
       todayOfficeShare,
       todayDoctorAmount,
-      todayEntriesCount: todayRecords.length
+      todayEntriesCount: filteredRecords.length,
+      allTimeEntriesCount: records.length,
+      allTimeTotalReceived,
+      dateRange
     };
   }
 
   /**
    * Calculates Investigation summary KPI metrics from records (100% Doctor)
    */
-  function calculateInvestigationSummaryMetrics(records) {
+  function calculateInvestigationSummaryMetrics(records, dateRange = 'today') {
     if (!Array.isArray(records)) records = [];
-    const today = getTodayDateString();
-    const todayRecords = records.filter(r => (r.date ? r.date === today : (r.createdAt && r.createdAt.startsWith(today))));
-    const todayTotal = todayRecords.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
+    const filteredRecords = filterRecordsByDateRange(records, dateRange);
+    const todayTotal = filteredRecords.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
+    const allTimeTotalReceived = records.reduce((sum, r) => sum + (Number(r.payment) || 0), 0);
     return {
       todayTotalReceived: todayTotal,
-      todayEntriesCount: todayRecords.length,
-      todayDoctorAmount: todayTotal
+      todayEntriesCount: filteredRecords.length,
+      todayDoctorAmount: todayTotal,
+      allTimeEntriesCount: records.length,
+      allTimeTotalReceived,
+      dateRange
     };
   }
 
@@ -324,6 +345,8 @@ const CalculationEngine = (function () {
       finalTotal += calc.finalTotal;
     });
 
+    const allTimeTotalReceived = records.reduce((sum, r) => sum + (Number(r.payment || r.receivedPayment) || 0), 0);
+
     return {
       todayTotalReceived: totalReceived,
       todaySubmittedPayment: totalSubmitted,
@@ -333,16 +356,17 @@ const CalculationEngine = (function () {
       todayEntriesCount: filteredRecords.length,
       todayDoctorAmount: totalReceived,
       allTimeEntriesCount: records.length,
+      allTimeTotalReceived,
       dateRange
     };
   }
 
   /**
-   * Filters a record list by specified dateRange ('today', 'yesterday', 'this_week', 'week')
+   * Filters a record list by specified dateRange ('today', 'yesterday', 'this_week', 'week', 'month', 'this_month', 'all')
    */
   function filterRecordsByDateRange(records, dateRange) {
     if (!Array.isArray(records)) return [];
-    if (!dateRange) return records;
+    if (!dateRange || dateRange === 'all') return records;
 
     const todayStr = getTodayDateString();
     const yesterdayStr = getYesterdayDateString();
@@ -355,9 +379,40 @@ const CalculationEngine = (function () {
       case 'week':
       case 'this_week':
         return records.filter(r => isDateInThisWeek(r.date || r.createdAt));
+      case 'month':
+      case 'this_month':
+        return records.filter(r => isDateInThisMonth(r.date || r.createdAt));
+      case 'all':
       default:
         return records;
     }
+  }
+
+  /**
+   * Calculates General KPI metrics from transactions
+   */
+  function calculateKPISummary(transactions, dateRange = 'all') {
+    if (!Array.isArray(transactions)) transactions = [];
+    const filtered = filterRecordsByDateRange(transactions, dateRange);
+    const totalRevenue = filtered.reduce((sum, t) => sum + (Number(t.totalFee) || Number(t.payment) || 0), 0);
+    const totalDoctorShare = filtered.reduce((sum, t) => sum + (Number(t.doctorAmount) || Number(t.doctorShare) || 0), 0);
+    const totalOfficeShare = filtered.reduce((sum, t) => sum + (Number(t.officeShare) || 0), 0);
+    const totalPending = filtered.reduce((sum, t) => sum + (Number(t.remainingBalance) || 0), 0);
+    const today = getTodayDateString();
+    const todayCollected = transactions
+      .filter(t => (t.date === today || (t.createdAt && t.createdAt.startsWith(today))))
+      .reduce((sum, t) => sum + (Number(t.paidAmount) || Number(t.payment) || 0), 0);
+
+    return {
+      totalRevenue,
+      totalDoctorShare,
+      totalOfficeShare,
+      totalPending,
+      todayCollected,
+      casesCount: filtered.length,
+      allTimeCasesCount: transactions.length,
+      dateRange
+    };
   }
 
   return {
@@ -369,11 +424,14 @@ const CalculationEngine = (function () {
     calculateMRISummaryMetrics,
     calculateInvestigationSummaryMetrics,
     calculateOperationSummaryMetrics,
+    calculateKPISummary,
     getDayNameFromDate,
     getTodayDateString,
     getYesterdayDateString,
     isDateInThisWeek,
     isDateInCurrentWeek: isDateInThisWeek,
+    isDateInThisMonth,
+    isDateInCurrentMonth: isDateInThisMonth,
     filterRecordsByDateRange,
     calculateRemainingBalance,
     resolvePaymentStatus,
