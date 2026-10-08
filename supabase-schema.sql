@@ -89,6 +89,9 @@ create table if not exists public.operation_payments (
   assistant_fee numeric(12,2) default 0,
   hdu_icu numeric(12,2) default 0,
   medicine numeric(12,2) default 0,
+  net_pay_sx_day numeric(12,2) not null default 0,
+  net_pay_later numeric(12,2) not null default 0,
+  final_total numeric(12,2) not null default 0,
   date date not null default current_date,
   day text not null default trim(to_char(current_date, 'Day')),
   created_at timestamptz not null default now(),
@@ -104,6 +107,28 @@ alter table if exists public.operation_payments add column if not exists admissi
 alter table if exists public.operation_payments add column if not exists assistant_fee numeric(12,2) default 0;
 alter table if exists public.operation_payments add column if not exists hdu_icu numeric(12,2) default 0;
 alter table if exists public.operation_payments add column if not exists medicine numeric(12,2) default 0;
+alter table if exists public.operation_payments add column if not exists net_pay_sx_day numeric(12,2) not null default 0;
+alter table if exists public.operation_payments add column if not exists net_pay_later numeric(12,2) not null default 0;
+alter table if exists public.operation_payments add column if not exists final_total numeric(12,2) not null default 0;
+
+-- Backfill calculation for existing records:
+update public.operation_payments
+set
+  net_pay_sx_day = coalesce(payment_amount, 0)
+                 - coalesce(submitted_payment, 0)
+                 - coalesce(admission_slip, 0)
+                 - coalesce(assistant_fee, 0),
+  net_pay_later  = coalesce(hdu_icu, 0)
+                 - coalesce(medicine, 0),
+  final_total    = (
+                     coalesce(payment_amount, 0)
+                   - coalesce(submitted_payment, 0)
+                   - coalesce(admission_slip, 0)
+                   - coalesce(assistant_fee, 0)
+                   ) + (
+                     coalesce(hdu_icu, 0)
+                   - coalesce(medicine, 0)
+                   );
 
 -- =============================================================================
 -- 3. INDEXES
