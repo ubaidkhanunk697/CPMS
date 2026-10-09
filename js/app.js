@@ -1584,6 +1584,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           fillColor: [241, 245, 249],
           textColor: [15, 23, 42],
           fontStyle: 'bold',
+          halign: 'center',
           fontSize: 9.5
         },
         bodyStyles: {
@@ -1600,10 +1601,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           0: { halign: 'center', cellWidth: 12 }, // S.No
           1: { halign: 'left', cellWidth: 48 },   // P Name
           2: { halign: 'left', cellWidth: 50 },   // Service
-          3: { halign: 'right', cellWidth: 32 },  // Received
-          4: { halign: 'right', cellWidth: 32 },  // Net Sx Day
-          5: { halign: 'right', cellWidth: 32 },  // Net Pay Later
-          6: { halign: 'right', cellWidth: 35 },  // Final Total
+          3: { halign: 'center', cellWidth: 32 }, // Received
+          4: { halign: 'center', cellWidth: 32 }, // Net Sx Day
+          5: { halign: 'center', cellWidth: 32 }, // Net Pay Later
+          6: { halign: 'center', cellWidth: 35 }, // Final Total
           7: { halign: 'center', cellWidth: 26 }  // Date
         },
         didDrawPage: function (data) {
