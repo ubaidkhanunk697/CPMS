@@ -75,6 +75,23 @@ const ClinicRepository = (function () {
     if (!localStorage.getItem(STORAGE_KEY_TRANSACTIONS)) {
       localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify([]));
     }
+    // Cleanse any legacy local-only mock IDs so they never pollute the Supabase database view
+    try {
+      [STORAGE_KEY_MRI, STORAGE_KEY_INVESTIGATION, STORAGE_KEY_OPERATION].forEach(key => {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          try {
+            const arr = JSON.parse(stored);
+            if (Array.isArray(arr)) {
+              const cleaned = arr.filter(r => r && r.id && !String(r.id).startsWith('MRI-') && !String(r.id).startsWith('INV-') && !String(r.id).startsWith('OP-'));
+              if (cleaned.length !== arr.length) {
+                localStorage.setItem(key, JSON.stringify(cleaned));
+              }
+            }
+          } catch (_) {}
+        }
+      });
+    } catch (_) {}
   }
 
   // --------------------------------------------------------------------------

@@ -80,8 +80,6 @@ const MRIService = (function () {
   }
 
   async function getAll() {
-    const local = getLocalRecords();
-
     if (SupabaseClient.isReady()) {
       try {
         await SupabaseClient.ensureAuthenticatedSession('mri', false);
@@ -93,31 +91,18 @@ const MRIService = (function () {
           .order('created_at', { ascending: false });
 
         if (!error && Array.isArray(data)) {
-          if (data.length > 0) {
-            const remoteMapped = data.map(mapRowToModel);
-            const remoteIds = new Set(remoteMapped.map(r => String(r.id)));
-            const localOnly = local.filter(r => !remoteIds.has(String(r.id)));
-            const merged = [...remoteMapped, ...localOnly];
-            merged.sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
-            saveLocalRecords(merged);
-
-            if (localOnly.length > 0) {
-              syncPendingRecordsToSupabase(localOnly);
-            }
-            return merged;
-          } else {
-            // Supabase returned empty array (could be due to RLS, anon session, or empty table).
-            // Retain and return local records so data is never lost or wiped.
-            return local;
-          }
+          const remoteMapped = data.map(mapRowToModel);
+          // Mirror Supabase records strictly in offline read-cache
+          saveLocalRecords(remoteMapped);
+          return remoteMapped;
         } else if (error) {
-          console.warn("[MRIService] Supabase query error, using local cache:", error);
+          console.warn("[MRIService] Supabase query error:", error);
         }
       } catch (err) {
         console.warn("[MRIService] Supabase network error, using local cache:", err);
       }
     }
-    return local;
+    return getLocalRecords();
   }
 
   async function getFiltered(dateFilter = 'today') {
@@ -160,7 +145,9 @@ const MRIService = (function () {
           .single();
 
         if (error) {
-          console.warn("[MRIService] Supabase insert warning:", error);
+          const formattedErr = SupabaseClient.formatErrorMessage(error, "Failed to insert MRI record in Supabase database.");
+          console.error("[MRIService] Supabase insert error:", formattedErr, error);
+          return { data: null, error: formattedErr };
         } else if (data) {
           const mapped = mapRowToModel(data);
           const current = getLocalRecords();
@@ -170,27 +157,12 @@ const MRIService = (function () {
           return { data: mapped, error: null };
         }
       } catch (err) {
-        console.warn("[MRIService] Supabase insert failed, saving to local cache fallback:", err);
+        console.error("[MRIService] Supabase insert failed:", err);
+        return { data: null, error: err.message || "Failed to reach Supabase database." };
       }
     }
 
-    // Local Storage Fallback
-    const localRecord = {
-      id: 'MRI-' + Date.now().toString(36).toUpperCase(),
-      patientName: payload.patient_name,
-      mriType: payload.mri_type,
-      payment: payload.payment_amount,
-      officeShare: CalculationEngine.calculateMRIShare(payload.payment_amount).officeShare,
-      doctorAmount: CalculationEngine.calculateMRIShare(payload.payment_amount).doctorAmount,
-      date: payload.date,
-      day: payload.day,
-      createdAt: new Date().toISOString(),
-      createdBy: payload.created_by
-    };
-    const current = getLocalRecords();
-    current.unshift(localRecord);
-    saveLocalRecords(current);
-    return { data: localRecord, error: null };
+    return { data: null, error: "Database not ready. All records must be saved directly to Supabase." };
   }
 
   async function update(id, updates) {
@@ -218,7 +190,9 @@ const MRIService = (function () {
           .single();
 
         if (error) {
-          console.warn("[MRIService] Supabase update warning:", error);
+          const formattedErr = SupabaseClient.formatErrorMessage(error, "Failed to update MRI record in Supabase database.");
+          console.error("[MRIService] Supabase update error:", formattedErr, error);
+          return { data: null, error: formattedErr };
         } else if (data) {
           const mapped = mapRowToModel(data);
           const current = getLocalRecords().map(r => r.id === String(id) ? mapped : r);
@@ -226,74 +200,66 @@ const MRIService = (function () {
           return { data: mapped, error: null };
         }
       } catch (err) {
-        console.warn("[MRIService] Supabase update failed, using local fallback:", err);
+        console.error("[MRIService] Supabase update failed:", err);
+        return { data: null, error: err.message || "Failed to update record in Supabase database." };
       }
     }
 
-    // Local Storage Fallback
-    const current = getLocalRecords();
-    const index = current.findIndex(r => r.id === String(id));
-    if (index !== -1) {
-      current[index] = {
-        ...current[index],
-        patientName: payload.patient_name,
-        mriType: payload.mri_type,
-        payment: payload.payment_amount,
-        officeShare: CalculationEngine.calculateMRIShare(payload.payment_amount).officeShare,
-        doctorAmount: CalculationEngine.calculateMRIShare(payload.payment_amount).doctorAmount,
-        date: payload.date,
-        day: payload.day
-      };
-      saveLocalRecords(current);
-      return { data: current[index], error: null };
-    }
-    return { data: null, error: 'Record not found.' };
+    return { data: null, error: "Database not ready. All records must be updated directly in Supabase." };
   }
 
   async function deleteRecord(id) {
-    if (SupabaseClient.isReady()) {
-      try {
-        await SupabaseClient.ensureAuthenticatedSession('mri', true);
-        const client = SupabaseClient.getClient();
-        const { error } = await client
-          .from('mri_payments')
-          .delete()
-          .eq('id', id);
-
-        if (error) {
-          console.warn("[MRIService] Supabase delete warning:", error);
-        }
-      } catch (err) {
-        console.warn("[MRIService] Supabase delete failed, using local fallback:", err);
-      }
+    if (!SupabaseClient.isReady()) {
+      return { success: false, error: "Database not ready. All records must be deleted directly from Supabase." };
     }
+    try {
+      await SupabaseClient.ensureAuthenticatedSession('mri', true);
+      const client = SupabaseClient.getClient();
+      const { error } = await client
+        .from('mri_payments')
+        .delete()
+        .eq('id', id);
 
-    const current = getLocalRecords().filter(r => r.id !== String(id));
-    saveLocalRecords(current);
-    return { success: true, error: null };
+      if (error) {
+        const formattedErr = SupabaseClient.formatErrorMessage(error, "Failed to delete MRI record from Supabase database.");
+        console.error("[MRIService] Supabase delete error:", formattedErr, error);
+        return { success: false, error: formattedErr };
+      }
+
+      const current = getLocalRecords().filter(r => r.id !== String(id));
+      saveLocalRecords(current);
+      return { success: true, error: null };
+    } catch (err) {
+      console.error("[MRIService] Supabase delete failed:", err);
+      return { success: false, error: err.message || "Failed to delete record from Supabase database." };
+    }
   }
 
   async function clearAll() {
-    if (SupabaseClient.isReady()) {
-      try {
-        await SupabaseClient.ensureAuthenticatedSession('mri', true);
-        const client = SupabaseClient.getClient();
-        // Delete all rows accessible under current RLS policy
-        const { error } = await client
-          .from('mri_payments')
-          .delete()
-          .neq('id', '00000000-0000-0000-0000-000000000000');
-
-        if (error) {
-          console.warn("[MRIService] Supabase clearAll warning:", error);
-        }
-      } catch (err) {
-        console.warn("[MRIService] Supabase clearAll failed, using local fallback:", err);
-      }
+    if (!SupabaseClient.isReady()) {
+      return { success: false, error: "Database not ready. All records must be cleared directly from Supabase." };
     }
+    try {
+      await SupabaseClient.ensureAuthenticatedSession('mri', true);
+      const client = SupabaseClient.getClient();
+      // Delete all rows accessible under current RLS policy
+      const { error } = await client
+        .from('mri_payments')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
-    saveLocalRecords([]);
-    return { success: true, error: null };
+      if (error) {
+        const formattedErr = SupabaseClient.formatErrorMessage(error, "Failed to clear MRI records from Supabase database.");
+        console.error("[MRIService] Supabase clearAll error:", formattedErr, error);
+        return { success: false, error: formattedErr };
+      }
+
+      saveLocalRecords([]);
+      return { success: true, error: null };
+    } catch (err) {
+      console.error("[MRIService] Supabase clearAll failed:", err);
+      return { success: false, error: err.message || "Failed to clear records from Supabase database." };
+    }
   }
 
   return {

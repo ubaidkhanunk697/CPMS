@@ -155,9 +155,6 @@ const OperationService = (function () {
   }
 
   async function getAll() {
-    const localRecords = getLocalRecords();
-    const localMap = new Map(localRecords.map(r => [String(r.id), r]));
-
     if (SupabaseClient.isReady()) {
       try {
         await SupabaseClient.ensureAuthenticatedSession('operation', false);
@@ -169,73 +166,32 @@ const OperationService = (function () {
           .order('created_at', { ascending: false });
 
         if (!error && Array.isArray(data)) {
-          if (data.length > 0) {
-            const remoteMapped = data.map(row => {
-              const m = mapRowToModel(row);
-              const local = localMap.get(String(m.id));
-              if (local) {
-                m.operationType = (row.operation_type !== undefined && row.operation_type !== null)
-                  ? row.operation_type
-                  : (local.operationType || m.operationType);
+          const remoteMapped = data.map(row => {
+            const m = mapRowToModel(row);
+            const c = CalculationEngine.calculateOperationShare(m.payment, m);
+            m.netToPaySxDay = (row.net_pay_sx_day !== undefined && row.net_pay_sx_day !== null && Number(row.net_pay_sx_day) !== 0)
+              ? Number(row.net_pay_sx_day)
+              : c.netToPaySxDay;
+            m.netPayLater = (row.net_pay_later !== undefined && row.net_pay_later !== null && Number(row.net_pay_later) !== 0)
+              ? Number(row.net_pay_later)
+              : c.netPayLater;
+            m.finalTotal = (row.final_total !== undefined && row.final_total !== null && Number(row.final_total) !== 0)
+              ? Number(row.final_total)
+              : c.finalTotal;
+            return m;
+          });
 
-                m.submittedPayment = (row.submitted_payment !== undefined && row.submitted_payment !== null)
-                  ? Number(row.submitted_payment)
-                  : Number(local.submittedPayment || 0);
-
-                m.admissionSlip = (row.admission_slip !== undefined && row.admission_slip !== null)
-                  ? Number(row.admission_slip)
-                  : Number(local.admissionSlip || 0);
-
-                m.assistantFee = (row.assistant_fee !== undefined && row.assistant_fee !== null)
-                  ? Number(row.assistant_fee)
-                  : Number(local.assistantFee ?? local.assistant ?? 0);
-                m.assistant = m.assistantFee;
-
-                m.hduIcu = (row.hdu_icu !== undefined && row.hdu_icu !== null)
-                  ? Number(row.hdu_icu)
-                  : Number(local.hduIcu || 0);
-
-                m.medicine = (row.medicine !== undefined && row.medicine !== null)
-                  ? Number(row.medicine)
-                  : Number(local.medicine || 0);
-              }
-              const c = CalculationEngine.calculateOperationShare(m.payment, m);
-              m.netToPaySxDay = (row.net_pay_sx_day !== undefined && row.net_pay_sx_day !== null && Number(row.net_pay_sx_day) !== 0)
-                ? Number(row.net_pay_sx_day)
-                : c.netToPaySxDay;
-              m.netPayLater = (row.net_pay_later !== undefined && row.net_pay_later !== null && Number(row.net_pay_later) !== 0)
-                ? Number(row.net_pay_later)
-                : c.netPayLater;
-              m.finalTotal = (row.final_total !== undefined && row.final_total !== null && Number(row.final_total) !== 0)
-                ? Number(row.final_total)
-                : c.finalTotal;
-              return m;
-            });
-
-            const remoteIdSet = new Set(remoteMapped.map(r => String(r.id)));
-            const localOnly = localRecords.filter(r => !remoteIdSet.has(String(r.id)));
-            const merged = [...remoteMapped, ...localOnly];
-            merged.sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
-
-            saveLocalRecords(merged);
-
-            if (localOnly.length > 0) {
-              syncPendingRecordsToSupabase(localOnly);
-            }
-            return merged;
-          } else {
-            // Supabase returned empty array (could be due to RLS, anon session, or empty table).
-            // Retain and return local records so data is never lost or wiped.
-            return localRecords;
-          }
+          // Mirror Supabase records strictly in offline read-cache
+          saveLocalRecords(remoteMapped);
+          return remoteMapped;
         } else if (error) {
-          console.warn("[OperationService] Supabase query error, using local cache:", error);
+          console.warn("[OperationService] Supabase query error:", error);
         }
       } catch (err) {
         console.warn("[OperationService] Supabase network error, using local cache:", err);
       }
     }
-    return localRecords;
+    return getLocalRecords();
   }
 
   async function getFiltered(dateFilter = 'today') {
@@ -301,7 +257,9 @@ const OperationService = (function () {
           .single();
 
         if (res.error) {
-          console.warn("[OperationService] Supabase insert warning:", res.error);
+          const formattedErr = SupabaseClient.formatErrorMessage(res.error, "Failed to insert Operation record in Supabase database.");
+          console.error("[OperationService] Supabase insert error:", formattedErr, res.error);
+          return { data: null, error: formattedErr };
         } else if (res.data) {
           const mapped = mapRowToModel(res.data);
           // Preserve all optional & calculated fields
@@ -323,38 +281,12 @@ const OperationService = (function () {
           return { data: mapped, error: null };
         }
       } catch (err) {
-        console.warn("[OperationService] Supabase insert failed, saving to local cache fallback:", err);
+        console.error("[OperationService] Supabase insert failed:", err);
+        return { data: null, error: err.message || "Failed to reach Supabase database." };
       }
     }
 
-    // Local Storage Fallback
-    const localRecord = {
-      id: 'OP-' + Date.now().toString(36).toUpperCase(),
-      patientName: fullPayload.patient_name,
-      operationType: opType,
-      operationName: opType,
-      payment: payment,
-      receivedPayment: payment,
-      submittedPayment: submittedPayment,
-      admissionSlip: admissionSlip,
-      assistantFee: assistantFee,
-      assistant: assistantFee,
-      hduIcu: hduIcu,
-      medicine: medicine,
-      doctorAmount: payment,
-      officeShare: 0,
-      netToPaySxDay: calc.netToPaySxDay,
-      netPayLater: calc.netPayLater,
-      finalTotal: calc.finalTotal,
-      date: fullPayload.date,
-      day: fullPayload.day,
-      createdAt: new Date().toISOString(),
-      createdBy: fullPayload.created_by
-    };
-    const current = getLocalRecords();
-    current.unshift(localRecord);
-    saveLocalRecords(current);
-    return { data: localRecord, error: null };
+    return { data: null, error: "Database not ready. All records must be saved directly to Supabase." };
   }
 
   async function update(id, updates) {
@@ -405,7 +337,11 @@ const OperationService = (function () {
           .select()
           .single();
 
-        if (res.data) {
+        if (res.error) {
+          const formattedErr = SupabaseClient.formatErrorMessage(res.error, "Failed to update Operation record in Supabase database.");
+          console.error("[OperationService] Supabase update error:", formattedErr, res.error);
+          return { data: null, error: formattedErr };
+        } else if (res.data) {
           const mapped = mapRowToModel(res.data);
           mapped.operationType = opType;
           mapped.submittedPayment = submittedPayment;
@@ -423,84 +359,66 @@ const OperationService = (function () {
           return { data: mapped, error: null };
         }
       } catch (err) {
-        console.warn("[OperationService] Supabase update failed, using local fallback:", err);
+        console.error("[OperationService] Supabase update failed:", err);
+        return { data: null, error: err.message || "Failed to update record in Supabase database." };
       }
     }
 
-    // Local Storage Fallback
-    const current = getLocalRecords();
-    const index = current.findIndex(r => r.id === String(id));
-    if (index !== -1) {
-      current[index] = {
-        ...current[index],
-        patientName: fullPayload.patient_name,
-        operationType: opType,
-        operationName: opType,
-        payment: payment,
-        receivedPayment: payment,
-        submittedPayment: submittedPayment,
-        admissionSlip: admissionSlip,
-        assistantFee: assistantFee,
-        assistant: assistantFee,
-        hduIcu: hduIcu,
-        medicine: medicine,
-        doctorAmount: payment,
-        netToPaySxDay: calc.netToPaySxDay,
-        netPayLater: calc.netPayLater,
-        finalTotal: calc.finalTotal,
-        date: fullPayload.date,
-        day: fullPayload.day
-      };
-      saveLocalRecords(current);
-      return { data: current[index], error: null };
-    }
-    return { data: null, error: 'Record not found.' };
+    return { data: null, error: "Database not ready. All records must be updated directly in Supabase." };
   }
 
   async function deleteRecord(id) {
-    if (SupabaseClient.isReady()) {
-      try {
-        await SupabaseClient.ensureAuthenticatedSession('operation', true);
-        const client = SupabaseClient.getClient();
-        const { error } = await client
-          .from('operation_payments')
-          .delete()
-          .eq('id', id);
-
-        if (error) {
-          console.warn("[OperationService] Supabase delete warning:", error);
-        }
-      } catch (err) {
-        console.warn("[OperationService] Supabase delete failed, using local fallback:", err);
-      }
+    if (!SupabaseClient.isReady()) {
+      return { success: false, error: "Database not ready. All records must be deleted directly from Supabase." };
     }
+    try {
+      await SupabaseClient.ensureAuthenticatedSession('operation', true);
+      const client = SupabaseClient.getClient();
+      const { error } = await client
+        .from('operation_payments')
+        .delete()
+        .eq('id', id);
 
-    const current = getLocalRecords().filter(r => r.id !== String(id));
-    saveLocalRecords(current);
-    return { success: true, error: null };
+      if (error) {
+        const formattedErr = SupabaseClient.formatErrorMessage(error, "Failed to delete Operation record from Supabase database.");
+        console.error("[OperationService] Supabase delete error:", formattedErr, error);
+        return { success: false, error: formattedErr };
+      }
+
+      const current = getLocalRecords().filter(r => r.id !== String(id));
+      saveLocalRecords(current);
+      return { success: true, error: null };
+    } catch (err) {
+      console.error("[OperationService] Supabase delete failed:", err);
+      return { success: false, error: err.message || "Failed to delete record from Supabase database." };
+    }
   }
 
   async function clearAll() {
-    if (SupabaseClient.isReady()) {
-      try {
-        await SupabaseClient.ensureAuthenticatedSession('operation', true);
-        const client = SupabaseClient.getClient();
-        // Delete all rows accessible under current RLS policy
-        const { error } = await client
-          .from('operation_payments')
-          .delete()
-          .neq('id', '00000000-0000-0000-0000-000000000000');
-
-        if (error) {
-          console.warn("[OperationService] Supabase clearAll warning:", error);
-        }
-      } catch (err) {
-        console.warn("[OperationService] Supabase clearAll failed, using local fallback:", err);
-      }
+    if (!SupabaseClient.isReady()) {
+      return { success: false, error: "Database not ready. All records must be cleared directly from Supabase." };
     }
+    try {
+      await SupabaseClient.ensureAuthenticatedSession('operation', true);
+      const client = SupabaseClient.getClient();
+      // Delete all rows accessible under current RLS policy
+      const { error } = await client
+        .from('operation_payments')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
-    saveLocalRecords([]);
-    return { success: true, error: null };
+      if (error) {
+        const formattedErr = SupabaseClient.formatErrorMessage(error, "Failed to clear Operation records from Supabase database.");
+        console.error("[OperationService] Supabase clearAll error:", formattedErr, error);
+        return { success: false, error: formattedErr };
+      }
+
+      saveLocalRecords([]);
+      return { success: true, error: null };
+    } catch (err) {
+      console.error("[OperationService] Supabase clearAll failed:", err);
+      return { success: false, error: err.message || "Failed to clear records from Supabase database." };
+    }
   }
 
   return {
