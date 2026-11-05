@@ -9,8 +9,12 @@ const SupabaseClient = (function () {
   let clientInstance = null;
   let connectionState = 'idle'; // 'idle' | 'connected' | 'error' | 'unconfigured'
   let lastError = null;
+  let isPurgingTokens = false;
+  let inFlightAuthPromise = null;
 
   function clearStaleAuthTokens() {
+    if (isPurgingTokens) return;
+    isPurgingTokens = true;
     try {
       if (typeof window === 'undefined' || !window.localStorage) return;
       const keysToRemove = [];
@@ -23,10 +27,10 @@ const SupabaseClient = (function () {
       keysToRemove.forEach(k => {
         try { window.localStorage.removeItem(k); } catch (_) {}
       });
-      if (clientInstance && clientInstance.auth && typeof clientInstance.auth.signOut === 'function') {
-        clientInstance.auth.signOut({ scope: 'local' }).catch(() => {});
-      }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      isPurgingTokens = false;
+    }
   }
 
   function init(force = false) {
@@ -176,82 +180,92 @@ const SupabaseClient = (function () {
     const client = getClient();
     if (!client) return null;
 
-    try {
-      const officeKey = String(targetOffice || 'operation').toLowerCase();
-      const creds = SUPABASE_OFFICE_CREDENTIALS[officeKey] || SUPABASE_OFFICE_CREDENTIALS['operation'];
+    if (inFlightAuthPromise) {
+      return inFlightAuthPromise;
+    }
 
-      // 1. Check if client already has an active session
-      let existing = null;
+    inFlightAuthPromise = (async () => {
       try {
-        const { data: sessionData, error: sessionErr } = await client.auth.getSession();
-        if (sessionErr) {
-          console.warn("[SupabaseClient] Stale session on getSession, purging tokens:", sessionErr.message);
-          clearStaleAuthTokens();
-        } else {
-          existing = sessionData?.session;
-        }
-      } catch (e) {
-        clearStaleAuthTokens();
-      }
+        const officeKey = String(targetOffice || 'operation').toLowerCase();
+        const creds = SUPABASE_OFFICE_CREDENTIALS[officeKey] || SUPABASE_OFFICE_CREDENTIALS['operation'];
 
-      if (existing && existing.user) {
-        // If the access token has expired or is expiring within 30s, verify/refresh safely
-        const nowSec = Math.floor(Date.now() / 1000);
-        if (existing.expires_at && existing.expires_at <= (nowSec + 30)) {
-          try {
-            const { data: refreshed, error: refreshErr } = await client.auth.refreshSession();
-            if (refreshErr || !refreshed?.session) {
-              console.warn("[SupabaseClient] Refresh failed, purging stale token:", refreshErr?.message);
+        // 1. Check if client already has an active session
+        let existing = null;
+        try {
+          const { data: sessionData, error: sessionErr } = await client.auth.getSession();
+          if (sessionErr) {
+            console.warn("[SupabaseClient] Stale session on getSession, purging tokens:", sessionErr.message);
+            clearStaleAuthTokens();
+          } else {
+            existing = sessionData?.session;
+          }
+        } catch (e) {
+          clearStaleAuthTokens();
+        }
+
+        if (existing && existing.user) {
+          // If the access token has expired or is expiring within 30s, verify/refresh safely
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (existing.expires_at && existing.expires_at <= (nowSec + 30)) {
+            try {
+              const { data: refreshed, error: refreshErr } = await client.auth.refreshSession();
+              if (refreshErr || !refreshed?.session) {
+                console.warn("[SupabaseClient] Refresh failed, purging stale token:", refreshErr?.message);
+                clearStaleAuthTokens();
+                existing = null;
+              } else {
+                existing = refreshed.session;
+              }
+            } catch (_) {
               clearStaleAuthTokens();
               existing = null;
-            } else {
-              existing = refreshed.session;
             }
-          } catch (_) {
-            clearStaleAuthTokens();
-            existing = null;
           }
         }
-      }
 
-      if (existing && existing.user) {
-        // If this is for read-only access (queries, metrics, getAll), ANY authenticated session is sufficient
-        if (!forWrite) {
+        if (existing && existing.user) {
+          // If this is for read-only access (queries, metrics, getAll), ANY authenticated session is sufficient
+          if (!forWrite) {
+            return existing;
+          }
+          // If this is for writing/inserting, verify user matches the required office or reuse active interactive user
+          if (!creds || existing.user.id === creds.userId || existing.user.email === creds.email) {
+            return existing;
+          }
           return existing;
         }
-        // If this is for writing/inserting, verify user matches the required office or reuse active interactive user
-        if (!creds || existing.user.id === creds.userId || existing.user.email === creds.email) {
-          return existing;
-        }
-        return existing;
-      }
 
-      // 2. If no session, sign in with office credentials if valid credentials exist
-      if (creds && creds.email && creds.password) {
-        const { data, error } = await client.auth.signInWithPassword({
-          email: creds.email,
-          password: creds.password
-        });
-        if (!error && data && data.session) {
-          return data.session;
-        }
-      } else if (!forWrite) {
-        // Fallback for background read queries: use verified reader account
-        const readerCreds = SUPABASE_OFFICE_CREDENTIALS['mri'];
-        if (readerCreds && readerCreds.password) {
+        // 2. If no session, sign in with office credentials if valid credentials exist
+        if (creds && creds.email && creds.password) {
           const { data, error } = await client.auth.signInWithPassword({
-            email: readerCreds.email,
-            password: readerCreds.password
+            email: creds.email,
+            password: creds.password
           });
           if (!error && data && data.session) {
             return data.session;
           }
+        } else if (!forWrite) {
+          // Fallback for background read queries: use verified reader account
+          const readerCreds = SUPABASE_OFFICE_CREDENTIALS['mri'];
+          if (readerCreds && readerCreds.password) {
+            const { data, error } = await client.auth.signInWithPassword({
+              email: readerCreds.email,
+              password: readerCreds.password
+            });
+            if (!error && data && data.session) {
+              return data.session;
+            }
+          }
         }
+      } catch (err) {
+        console.warn("[SupabaseClient] Error in ensureAuthenticatedSession:", err);
+      } finally {
+        inFlightAuthPromise = null;
       }
-    } catch (err) {
-      console.warn("[SupabaseClient] Error in ensureAuthenticatedSession:", err);
-    }
-    return null;
+      return null;
+    })();
+
+    return inFlightAuthPromise;
   }
 
   function notifyStatusChange(status, details = null) {

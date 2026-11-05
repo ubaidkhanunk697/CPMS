@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 1. Initialize Foundational Systems
   LanguageManager.init();
   PWAManager.init();
+  if (typeof SupabaseClient !== 'undefined' && !SupabaseClient.isReady()) {
+    SupabaseClient.init();
+  }
   ClinicRepository.initStorage();
   AuthService.init();
 
@@ -1740,8 +1743,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Enforce role-based sidebar visibility (restrict each officer to their own office)
       NavigationManager.syncRoleNavigation(session.user);
 
-      // Always direct user to their designated related dashboard upon login
-      NavigationManager.setActiveOffice(session.user.office, true, true);
+      // Direct user to their designated related dashboard upon login
+      const currentActiveOffice = NavigationManager.getActiveOfficeId();
+      if (currentActiveOffice !== session.user.office) {
+        NavigationManager.setActiveOffice(session.user.office, true, false);
+      } else {
+        refreshDashboard();
+      }
     } else {
       // User is unauthenticated: Show login portal, hide main application
       if (authView) authView.style.display = 'flex';

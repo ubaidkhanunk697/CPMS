@@ -44,44 +44,60 @@ const AuthService = (function () {
     }
 
     // Connect Supabase Auth listener if client is ready
-    if (SupabaseClient.isReady()) {
-      const client = SupabaseClient.getClient();
-      client.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          // If interactive clinic session is doctor / admin, NEVER overwrite it with background service session
-          if (currentSession && currentSession.user && (currentSession.user.office === 'doctor' || currentSession.user.role === 'doctor')) {
-            return;
-          }
-          // If currentSession belongs to a user and incoming token has a different email/id, do NOT hijack
-          if (currentSession && currentSession.user && session.user && currentSession.user.email !== session.user.email && currentSession.user.id !== session.user.id) {
-            return;
-          }
-          await syncSupabaseSession(session);
-        } else if (event === 'SIGNED_OUT') {
-          // Only sign out if current session was tied to this Supabase auth session
-          if (currentSession && currentSession.user && currentSession.user.office === 'doctor') {
-            return;
-          }
-          currentSession = null;
-          localStorage.removeItem(STORAGE_KEY_SESSION);
-          if (typeof SupabaseClient !== 'undefined' && typeof SupabaseClient.clearStaleAuthTokens === 'function') {
-            SupabaseClient.clearStaleAuthTokens();
-          }
-          notifyAuthStateChange('SIGNED_OUT', null);
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          if (currentSession && currentSession.user && currentSession.user.id === session.user?.id) {
-            currentSession = {
-              ...currentSession,
-              ...session,
-              user: currentSession.user
-            };
-            localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession));
-          }
-        }
-      });
-    }
+    attachSupabaseAuthListener();
 
     return currentSession;
+  }
+
+  let isSupabaseListenerAttached = false;
+
+  function attachSupabaseAuthListener() {
+    if (isSupabaseListenerAttached) return;
+    if (typeof SupabaseClient === 'undefined' || !SupabaseClient.isReady()) return;
+    const client = SupabaseClient.getClient();
+    if (!client || !client.auth || typeof client.auth.onAuthStateChange !== 'function') return;
+
+    isSupabaseListenerAttached = true;
+    client.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        // If interactive clinic session is doctor / admin, NEVER overwrite it with background service session
+        if (currentSession && currentSession.user && (currentSession.user.office === 'doctor' || currentSession.user.role === 'doctor')) {
+          return;
+        }
+        // If currentSession belongs to a user and incoming token has a different email/id, do NOT hijack
+        if (currentSession && currentSession.user && session.user && currentSession.user.email !== session.user.email && currentSession.user.id !== session.user.id) {
+          return;
+        }
+        // If currentSession belongs to this exact user, update tokens silently and avoid triggering render cascades
+        if (currentSession && currentSession.user && session.user && currentSession.user.id === session.user.id) {
+          currentSession = {
+            ...currentSession,
+            ...session,
+            user: currentSession.user
+          };
+          localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession));
+          return;
+        }
+        await syncSupabaseSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        // Only sign out if current session was tied to this Supabase auth session
+        if (currentSession && currentSession.user && currentSession.user.office === 'doctor') {
+          return;
+        }
+        currentSession = null;
+        localStorage.removeItem(STORAGE_KEY_SESSION);
+        notifyAuthStateChange('SIGNED_OUT', null);
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        if (currentSession && currentSession.user && currentSession.user.id === session.user?.id) {
+          currentSession = {
+            ...currentSession,
+            ...session,
+            user: currentSession.user
+          };
+          localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession));
+        }
+      }
+    });
   }
 
   async function syncSupabaseSession(session) {
@@ -444,6 +460,7 @@ const AuthService = (function () {
     getCurrentUser,
     hasAccessToOffice,
     onAuthStateChange,
+    attachSupabaseAuthListener,
     getKnownUsers
   };
 })();
