@@ -195,15 +195,25 @@ const UI = (function () {
     `).join('');
   }
 
-  /* ------------------------------------------------------------------------
-     3B. MRI Office Dedicated Summary Cards Renderer
-     Summary cards: Today's Total Received, Today's MRI Entries, MRI Office Share, Doctor Amount
-     ------------------------------------------------------------------------ */
   function getPeriodLabel(dateRange) {
     if (dateRange === 'week' || dateRange === 'this_week') return LanguageManager.t('filter_this_week');
     if (dateRange === 'month' || dateRange === 'this_month') return LanguageManager.t('filter_this_month');
     if (dateRange === 'all') return LanguageManager.t('filter_all_time');
     return LanguageManager.t('filter_today');
+  }
+
+  function getPeriodEntriesTitle(dateRange, fallbackKey) {
+    const isUrdu = (typeof LanguageManager !== 'undefined' && LanguageManager.isRTL());
+    if (dateRange === 'week' || dateRange === 'this_week') {
+      return isUrdu ? 'اس ہفتے کے اندراجات' : "This Week's Entries";
+    }
+    if (dateRange === 'month' || dateRange === 'this_month') {
+      return isUrdu ? 'اس ماہ کے اندراجات' : "This Month's Entries";
+    }
+    if (dateRange === 'all') {
+      return isUrdu ? 'کل اندراجات' : "All Entries";
+    }
+    return LanguageManager.t(fallbackKey);
   }
 
   /* ------------------------------------------------------------------------
@@ -226,10 +236,7 @@ const UI = (function () {
       },
       {
         key: 'kpi_today_mri_entries',
-        title: (metrics.dateRange === 'week' ? (LanguageManager.isRTL() ? 'اس ہفتے کے اندراجات' : "This Week's Entries") :
-               metrics.dateRange === 'month' ? (LanguageManager.isRTL() ? 'اس ماہ کے اندراجات' : "This Month's Entries") :
-               metrics.dateRange === 'all' ? (LanguageManager.isRTL() ? 'کل اندراجات' : "All Entries") :
-               LanguageManager.t('kpi_today_mri_entries')),
+        title: getPeriodEntriesTitle(metrics.dateRange, 'kpi_today_mri_entries'),
         value: `${metrics.todayEntriesCount}`,
         accent: 'accent-amber',
         footer: `${metrics.allTimeEntriesCount} ${LanguageManager.t('kpi_cases_count')}`,
@@ -288,10 +295,7 @@ const UI = (function () {
       },
       {
         key: 'kpi_today_inv_entries',
-        title: (metrics.dateRange === 'week' ? (LanguageManager.isRTL() ? 'اس ہفتے کے اندراجات' : "This Week's Entries") :
-               metrics.dateRange === 'month' ? (LanguageManager.isRTL() ? 'اس ماہ کے اندراجات' : "This Month's Entries") :
-               metrics.dateRange === 'all' ? (LanguageManager.isRTL() ? 'کل اندراجات' : "All Entries") :
-               LanguageManager.t('kpi_today_inv_entries')),
+        title: getPeriodEntriesTitle(metrics.dateRange, 'kpi_today_inv_entries'),
         value: `${metrics.todayEntriesCount}`,
         accent: 'accent-amber',
         footer: `${metrics.allTimeEntriesCount} ${LanguageManager.t('kpi_cases_count')}`,
@@ -358,10 +362,7 @@ const UI = (function () {
       },
       {
         key: 'kpi_today_op_entries',
-        title: (metrics.dateRange === 'week' ? (LanguageManager.isRTL() ? 'اس ہفتے کے اندراجات' : "This Week's Entries") :
-               metrics.dateRange === 'month' ? (LanguageManager.isRTL() ? 'اس ماہ کے اندراجات' : "This Month's Entries") :
-               metrics.dateRange === 'all' ? (LanguageManager.isRTL() ? 'کل اندراجات' : "All Entries") :
-               LanguageManager.t('kpi_today_op_entries')),
+        title: getPeriodEntriesTitle(metrics.dateRange, 'kpi_today_op_entries'),
         value: `${metrics.todayEntriesCount}`,
         accent: 'accent-red',
         footer: `${metrics.allTimeEntriesCount || metrics.todayEntriesCount} ${LanguageManager.t('kpi_cases_count')}`,

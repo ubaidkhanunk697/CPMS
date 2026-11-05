@@ -190,44 +190,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     dayEl.value = computedDay || '';
   }
 
-  // Initialize entry form date & day
-  if (mriDateInput && mriDayInput) {
-    syncDateAndDay(mriDateInput, mriDayInput);
-    mriDateInput.addEventListener('input', () => syncDateAndDay(mriDateInput, mriDayInput));
-    mriDateInput.addEventListener('change', () => syncDateAndDay(mriDateInput, mriDayInput));
+  function bindDateAndDaySync(dateEl, dayEl, initialSync = false) {
+    if (!dateEl || !dayEl) return;
+    if (initialSync) syncDateAndDay(dateEl, dayEl);
+    ['input', 'change'].forEach(evt => dateEl.addEventListener(evt, () => syncDateAndDay(dateEl, dayEl)));
   }
 
-  // Initialize edit form date & day listeners
-  if (mriEditDateInput && mriEditDayInput) {
-    mriEditDateInput.addEventListener('input', () => syncDateAndDay(mriEditDateInput, mriEditDayInput));
-    mriEditDateInput.addEventListener('change', () => syncDateAndDay(mriEditDateInput, mriEditDayInput));
-  }
-
-  // Initialize Investigation entry form date & day
-  if (invDateInput && invDayInput) {
-    syncDateAndDay(invDateInput, invDayInput);
-    invDateInput.addEventListener('input', () => syncDateAndDay(invDateInput, invDayInput));
-    invDateInput.addEventListener('change', () => syncDateAndDay(invDateInput, invDayInput));
-  }
-
-  // Initialize Investigation edit form date & day listeners
-  if (invEditDateInput && invEditDayInput) {
-    invEditDateInput.addEventListener('input', () => syncDateAndDay(invEditDateInput, invEditDayInput));
-    invEditDateInput.addEventListener('change', () => syncDateAndDay(invEditDateInput, invEditDayInput));
-  }
-
-  // Initialize Operation entry form date & day
-  if (opDateInput && opDayInput) {
-    syncDateAndDay(opDateInput, opDayInput);
-    opDateInput.addEventListener('input', () => syncDateAndDay(opDateInput, opDayInput));
-    opDateInput.addEventListener('change', () => syncDateAndDay(opDateInput, opDayInput));
-  }
-
-  // Initialize Operation edit form date & day listeners
-  if (opEditDateInput && opEditDayInput) {
-    opEditDateInput.addEventListener('input', () => syncDateAndDay(opEditDateInput, opEditDayInput));
-    opEditDateInput.addEventListener('change', () => syncDateAndDay(opEditDateInput, opEditDayInput));
-  }
+  // Initialize entry & edit form date & day listeners
+  bindDateAndDaySync(mriDateInput, mriDayInput, true);
+  bindDateAndDaySync(mriEditDateInput, mriEditDayInput);
+  bindDateAndDaySync(invDateInput, invDayInput, true);
+  bindDateAndDaySync(invEditDateInput, invEditDayInput);
+  bindDateAndDaySync(opDateInput, opDayInput, true);
+  bindDateAndDaySync(opEditDateInput, opEditDayInput);
 
   /* ------------------------------------------------------------------------
      5. Real-Time Calculation Previews for MRI
@@ -896,118 +871,128 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ------------------------------------------------------------------------
      8. Table Actions: Edit, Delete, and Clear All (MRI, Investigation, & Operation)
      ------------------------------------------------------------------------ */
+  async function openRecordEditModal(dept, id) {
+    if (dept === 'investigation') {
+      const record = await ClinicRepository.getInvestigationRecordById(id);
+      if (record) {
+        invEditId.value = record.id;
+        invEditPatientName.value = record.patientName;
+        invEditTestNameInput.value = record.testName;
+        invEditPaymentInput.value = record.payment;
+        invEditDateInput.value = record.date;
+        syncDateAndDay(invEditDateInput, invEditDayInput);
+        updateInvestigationEditLiveCalculation();
+        UI.Modal.open('inv-edit-modal');
+      }
+    } else if (dept === 'assistant' || dept === 'operation') {
+      const record = await ClinicRepository.getOperationRecordById(id);
+      if (record) {
+        opEditId.value = record.id;
+        opEditPatientName.value = record.patientName;
+        opEditOperationNameInput.value = record.operationType || record.operationName;
+        opEditPaymentInput.value = record.payment || record.receivedPayment;
+        opEditDateInput.value = record.date;
+        if (opEditSubmittedPayment) opEditSubmittedPayment.value = record.submittedPayment || '';
+        if (opEditAdmissionSlip) opEditAdmissionSlip.value = record.admissionSlip || '';
+        if (opEditAssistantFee) opEditAssistantFee.value = record.assistantFee || record.assistant || '';
+        if (opEditHduIcu) opEditHduIcu.value = record.hduIcu || '';
+        if (opEditMedicine) opEditMedicine.value = record.medicine || '';
+        syncDateAndDay(opEditDateInput, opEditDayInput);
+        updateOperationEditLiveCalculation();
+        UI.Modal.open('op-edit-modal');
+      }
+    } else if (dept === 'mri') {
+      const record = await ClinicRepository.getMRIRecordById(id);
+      if (record) {
+        mriEditId.value = record.id;
+        mriEditPatientName.value = record.patientName;
+        mriEditTypeInput.value = record.mriType;
+        mriEditPaymentInput.value = record.payment;
+        mriEditDateInput.value = record.date;
+        syncDateAndDay(mriEditDateInput, mriEditDayInput);
+        updateMRIEditLiveCalculation();
+        UI.Modal.open('mri-edit-modal');
+      }
+    }
+  }
+
+  function handleRecordDelete(dept, id, onDeletedCallback) {
+    let titleKey = 'confirm_delete_single_title';
+    let textKey = 'confirm_delete_single_text';
+    let toastKey = 'toast_mri_deleted';
+
+    if (dept === 'investigation') {
+      titleKey = 'confirm_delete_single_inv_title';
+      textKey = 'confirm_delete_single_inv_text';
+      toastKey = 'toast_inv_deleted';
+    } else if (dept === 'assistant' || dept === 'operation') {
+      titleKey = 'confirm_delete_single_op_title';
+      textKey = 'confirm_delete_single_op_text';
+      toastKey = 'toast_op_deleted';
+    }
+
+    UI.Modal.confirm(
+      LanguageManager.t(titleKey),
+      LanguageManager.t(textKey),
+      async () => {
+        if (dept === 'investigation') {
+          await ClinicRepository.deleteInvestigationRecord(id);
+        } else if (dept === 'assistant' || dept === 'operation') {
+          await ClinicRepository.deleteOperationRecord(id);
+        } else {
+          await ClinicRepository.deleteMRIRecord(id);
+        }
+        UI.Toast.success(LanguageManager.t(toastKey));
+        if (typeof onDeletedCallback === 'function') {
+          await onDeletedCallback();
+        }
+      },
+      LanguageManager.t('btn_yes_delete'),
+      true
+    );
+  }
+
   if (transactionsTbody) {
     transactionsTbody.addEventListener('click', async (e) => {
       // 1A. Edit Investigation Entry Action
       const invEditBtn = e.target.closest('.btn-inv-edit');
       if (invEditBtn) {
-        const id = invEditBtn.getAttribute('data-id');
-        const record = await ClinicRepository.getInvestigationRecordById(id);
-        if (record) {
-          invEditId.value = record.id;
-          invEditPatientName.value = record.patientName;
-          invEditTestNameInput.value = record.testName;
-          invEditPaymentInput.value = record.payment;
-          invEditDateInput.value = record.date;
-          syncDateAndDay(invEditDateInput, invEditDayInput);
-          updateInvestigationEditLiveCalculation();
-          UI.Modal.open('inv-edit-modal');
-        }
+        await openRecordEditModal('investigation', invEditBtn.getAttribute('data-id'));
         return;
       }
 
       // 1B. Edit Operation Entry Action
       const opEditBtn = e.target.closest('.btn-op-edit');
       if (opEditBtn) {
-        const id = opEditBtn.getAttribute('data-id');
-        const record = await ClinicRepository.getOperationRecordById(id);
-        if (record) {
-          opEditId.value = record.id;
-          opEditPatientName.value = record.patientName;
-          opEditOperationNameInput.value = record.operationType || record.operationName;
-          opEditPaymentInput.value = record.payment || record.receivedPayment;
-          opEditDateInput.value = record.date;
-          if (opEditSubmittedPayment) opEditSubmittedPayment.value = record.submittedPayment || '';
-          if (opEditAdmissionSlip) opEditAdmissionSlip.value = record.admissionSlip || '';
-          if (opEditAssistantFee) opEditAssistantFee.value = record.assistantFee || record.assistant || '';
-          if (opEditHduIcu) opEditHduIcu.value = record.hduIcu || '';
-          if (opEditMedicine) opEditMedicine.value = record.medicine || '';
-          syncDateAndDay(opEditDateInput, opEditDayInput);
-          updateOperationEditLiveCalculation();
-          UI.Modal.open('op-edit-modal');
-        }
+        await openRecordEditModal('operation', opEditBtn.getAttribute('data-id'));
         return;
       }
 
       // 1C. Edit MRI Entry Action
       const editBtn = e.target.closest('.btn-action-edit:not(.btn-inv-edit):not(.btn-op-edit)');
       if (editBtn) {
-        const id = editBtn.getAttribute('data-id');
-        const record = await ClinicRepository.getMRIRecordById(id);
-        if (record) {
-          mriEditId.value = record.id;
-          mriEditPatientName.value = record.patientName;
-          mriEditTypeInput.value = record.mriType;
-          mriEditPaymentInput.value = record.payment;
-          mriEditDateInput.value = record.date;
-          syncDateAndDay(mriEditDateInput, mriEditDayInput);
-          updateMRIEditLiveCalculation();
-          UI.Modal.open('mri-edit-modal');
-        }
+        await openRecordEditModal('mri', editBtn.getAttribute('data-id'));
         return;
       }
 
       // 2A. Delete Investigation Entry Action
       const invDeleteBtn = e.target.closest('.btn-inv-delete');
       if (invDeleteBtn) {
-        const id = invDeleteBtn.getAttribute('data-id');
-        UI.Modal.confirm(
-          LanguageManager.t('confirm_delete_single_inv_title'),
-          LanguageManager.t('confirm_delete_single_inv_text'),
-          async () => {
-            await ClinicRepository.deleteInvestigationRecord(id);
-            UI.Toast.success(LanguageManager.t('toast_inv_deleted'));
-            await refreshInvestigationDashboard();
-          },
-          LanguageManager.t('btn_yes_delete'),
-          true
-        );
+        handleRecordDelete('investigation', invDeleteBtn.getAttribute('data-id'), refreshInvestigationDashboard);
         return;
       }
 
       // 2B. Delete Operation Entry Action
       const opDeleteBtn = e.target.closest('.btn-op-delete');
       if (opDeleteBtn) {
-        const id = opDeleteBtn.getAttribute('data-id');
-        UI.Modal.confirm(
-          LanguageManager.t('confirm_delete_single_op_title'),
-          LanguageManager.t('confirm_delete_single_op_text'),
-          async () => {
-            await ClinicRepository.deleteOperationRecord(id);
-            UI.Toast.success(LanguageManager.t('toast_op_deleted'));
-            await refreshOperationDashboard();
-          },
-          LanguageManager.t('btn_yes_delete'),
-          true
-        );
+        handleRecordDelete('operation', opDeleteBtn.getAttribute('data-id'), refreshOperationDashboard);
         return;
       }
 
       // 2C. Delete MRI Entry Action
       const deleteBtn = e.target.closest('.btn-action-delete:not(.btn-inv-delete):not(.btn-op-delete)');
       if (deleteBtn) {
-        const id = deleteBtn.getAttribute('data-id');
-        UI.Modal.confirm(
-          LanguageManager.t('confirm_delete_single_title'),
-          LanguageManager.t('confirm_delete_single_text'),
-          async () => {
-            await ClinicRepository.deleteMRIRecord(id);
-            UI.Toast.success(LanguageManager.t('toast_mri_deleted'));
-            await refreshMRIDashboard();
-          },
-          LanguageManager.t('btn_yes_delete'),
-          true
-        );
+        handleRecordDelete('mri', deleteBtn.getAttribute('data-id'), refreshMRIDashboard);
         return;
       }
 
@@ -1707,127 +1692,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Edit record
       const editBtn = e.target.closest('.btn-doc-edit');
       if (editBtn) {
-        const id = editBtn.getAttribute('data-id');
-        const dept = editBtn.getAttribute('data-dept');
-
-        if (dept === 'mri') {
-          const record = await ClinicRepository.getMRIRecordById(id);
-          if (record) {
-            mriEditId.value = record.id;
-            mriEditPatientName.value = record.patientName;
-            mriEditTypeInput.value = record.mriType;
-            mriEditPaymentInput.value = record.payment;
-            mriEditDateInput.value = record.date;
-            syncDateAndDay(mriEditDateInput, mriEditDayInput);
-            updateMRIEditLiveCalculation();
-            UI.Modal.open('mri-edit-modal');
-          }
-        } else if (dept === 'investigation') {
-          const record = await ClinicRepository.getInvestigationRecordById(id);
-          if (record) {
-            invEditId.value = record.id;
-            invEditPatientName.value = record.patientName;
-            invEditTestNameInput.value = record.testName;
-            invEditPaymentInput.value = record.payment;
-            invEditDateInput.value = record.date;
-            syncDateAndDay(invEditDateInput, invEditDayInput);
-            updateInvestigationEditLiveCalculation();
-            UI.Modal.open('inv-edit-modal');
-          }
-        } else if (dept === 'assistant') {
-          const record = await ClinicRepository.getOperationRecordById(id);
-          if (record) {
-            opEditId.value = record.id;
-            opEditPatientName.value = record.patientName;
-            opEditOperationNameInput.value = record.operationType || record.operationName;
-            opEditPaymentInput.value = record.payment || record.receivedPayment;
-            opEditDateInput.value = record.date;
-            if (opEditSubmittedPayment) opEditSubmittedPayment.value = record.submittedPayment || '';
-            if (opEditAdmissionSlip) opEditAdmissionSlip.value = record.admissionSlip || '';
-            if (opEditAssistantFee) opEditAssistantFee.value = record.assistantFee || record.assistant || '';
-            if (opEditHduIcu) opEditHduIcu.value = record.hduIcu || '';
-            if (opEditMedicine) opEditMedicine.value = record.medicine || '';
-            syncDateAndDay(opEditDateInput, opEditDayInput);
-            updateOperationEditLiveCalculation();
-            UI.Modal.open('op-edit-modal');
-          }
-        }
+        await openRecordEditModal(editBtn.getAttribute('data-dept'), editBtn.getAttribute('data-id'));
         return;
       }
 
       // Delete record (requires confirmation)
       const deleteBtn = e.target.closest('.btn-doc-delete');
       if (deleteBtn) {
-        const id = deleteBtn.getAttribute('data-id');
-        const dept = deleteBtn.getAttribute('data-dept');
-
-        let titleKey = 'confirm_delete_single_title';
-        let textKey = 'confirm_delete_single_text';
-        let toastKey = 'toast_mri_deleted';
-
-        if (dept === 'investigation') {
-          titleKey = 'confirm_delete_single_inv_title';
-          textKey = 'confirm_delete_single_inv_text';
-          toastKey = 'toast_inv_deleted';
-        } else if (dept === 'assistant') {
-          titleKey = 'confirm_delete_single_op_title';
-          textKey = 'confirm_delete_single_op_text';
-          toastKey = 'toast_op_deleted';
-        }
-
-        UI.Modal.confirm(
-          LanguageManager.t(titleKey),
-          LanguageManager.t(textKey),
-          async () => {
-            if (dept === 'mri') {
-              await ClinicRepository.deleteMRIRecord(id);
-            } else if (dept === 'investigation') {
-              await ClinicRepository.deleteInvestigationRecord(id);
-            } else if (dept === 'assistant') {
-              await ClinicRepository.deleteOperationRecord(id);
-            }
-            UI.Toast.success(LanguageManager.t(toastKey));
-            await refreshDoctorDashboard();
-          },
-          LanguageManager.t('btn_yes_delete'),
-          true
-        );
+        handleRecordDelete(deleteBtn.getAttribute('data-dept'), deleteBtn.getAttribute('data-id'), refreshDoctorDashboard);
       }
     });
-  }
-
-  // 5. Doctor Export Report CSV Handler
-  async function exportDoctorReportCSV() {
-    const records = await ClinicRepository.getDoctorFilteredRecords(doctorActiveTab, doctorDateFilter);
-    let csvContent = "data:text/csv;charset=utf-8,";
-
-    if (doctorActiveTab === 'mri') {
-      csvContent += "ID,Patient Name,MRI Type,Payment,MRI Machine Exp,MRI Profit,Date,Day\n";
-      records.forEach(r => {
-        csvContent += `"${r.id}","${r.patientName}","${r.mriType}",${r.payment},${r.officeShare},${r.doctorAmount},"${r.date}","${r.day}"\n`;
-      });
-    } else if (doctorActiveTab === 'investigation') {
-      csvContent += "ID,Patient Name,Test Name,Payment,Doctor Amount,Date,Day\n";
-      records.forEach(r => {
-        csvContent += `"${r.id}","${r.patientName}","${r.testName}",${r.payment},${r.doctorAmount},"${r.date}","${r.day}"\n`;
-      });
-    } else {
-      csvContent += "ID,Patient Name,Operation Type,Received Payment,Submitted Payment,Admission / Slip,Assistant,HDU / ICU,Medicine,Net to Pay Sx Day,Net Pay Later,Final Total,Doctor Amount,Date,Day\n";
-      records.forEach(r => {
-        const c = CalculationEngine.calculateOperationShare(r.payment || r.receivedPayment, r);
-        csvContent += `"${r.id}","${r.patientName}","${r.operationType || r.operationName}",${c.receivedPayment},${c.submittedPayment},${c.admissionSlip},${c.assistantFee},${c.hduIcu},${c.medicine},${c.netToPaySxDay},${c.netPayLater},${c.finalTotal},${c.doctorAmount},"${r.date}","${r.day}"\n`;
-      });
-    }
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Doctor_${doctorActiveTab.toUpperCase()}_${doctorDateFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    UI.Toast.success("Doctor report exported as CSV.");
   }
 
   if (btnDoctorExport) {

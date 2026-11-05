@@ -415,7 +415,6 @@ const ClinicRepository = (function () {
     deleteMRIRecord,
     clearAllMRIRecords,
     getMRISummaryMetrics,
-    saveMRIRecord: async (rec) => rec.id ? updateMRIRecord(rec.id, rec) : addMRIRecord(rec),
     getInvestigationRecords,
     getInvestigationRecordById,
     addInvestigationRecord,
@@ -423,7 +422,6 @@ const ClinicRepository = (function () {
     deleteInvestigationRecord,
     clearAllInvestigationRecords,
     getInvestigationSummaryMetrics,
-    saveInvestigationRecord: async (rec) => rec.id ? updateInvestigationRecord(rec.id, rec) : addInvestigationRecord(rec),
     getOperationRecords,
     getOperationRecordById,
     addOperationRecord,
@@ -431,7 +429,6 @@ const ClinicRepository = (function () {
     deleteOperationRecord,
     clearAllOperationRecords,
     getOperationSummaryMetrics,
-    saveOperationRecord: async (rec) => rec.id ? updateOperationRecord(rec.id, rec) : addOperationRecord(rec),
     getDoctorSummaryMetrics,
     getDoctorFilteredRecords
   };
