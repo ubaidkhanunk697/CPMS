@@ -2179,7 +2179,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // 11. Initial Startup & Session Verification
-  SupabaseClient.init();
+  if (!SupabaseClient.isReady()) {
+    SupabaseClient.init();
+  }
   updateSupabaseStatusDisplay();
   NavigationManager.init();
   const sessionRes = await AuthService.getSession();

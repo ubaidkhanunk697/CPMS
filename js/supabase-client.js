@@ -10,7 +10,30 @@ const SupabaseClient = (function () {
   let connectionState = 'idle'; // 'idle' | 'connected' | 'error' | 'unconfigured'
   let lastError = null;
 
-  function init() {
+  function clearStaleAuthTokens() {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      const keysToRemove = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (k && ((k.startsWith('sb-') && k.endsWith('-auth-token')) || k === 'supabase.auth.token')) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach(k => {
+        try { window.localStorage.removeItem(k); } catch (_) {}
+      });
+      if (clientInstance && clientInstance.auth && typeof clientInstance.auth.signOut === 'function') {
+        clientInstance.auth.signOut({ scope: 'local' }).catch(() => {});
+      }
+    } catch (_) {}
+  }
+
+  function init(force = false) {
+    if (clientInstance && !force) {
+      return clientInstance;
+    }
+
     if (!SupabaseConfig.isConfigured()) {
       connectionState = 'unconfigured';
       clientInstance = null;
@@ -28,6 +51,23 @@ const SupabaseClient = (function () {
       lastError = 'Supabase SDK bundle not loaded.';
       notifyStatusChange('error', lastError);
       return null;
+    }
+
+    // Proactively purge stale or orphaned auth tokens if no active valid session exists in clinic storage
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const activeSession = window.localStorage.getItem('clinic_pay_auth_session_v1');
+        if (!activeSession) {
+          clearStaleAuthTokens();
+        } else {
+          const parsed = JSON.parse(activeSession);
+          if (!parsed.expires_at || parsed.expires_at <= Math.floor(Date.now() / 1000)) {
+            clearStaleAuthTokens();
+          }
+        }
+      }
+    } catch (_) {
+      clearStaleAuthTokens();
     }
 
     try {
@@ -141,8 +181,39 @@ const SupabaseClient = (function () {
       const creds = SUPABASE_OFFICE_CREDENTIALS[officeKey] || SUPABASE_OFFICE_CREDENTIALS['operation'];
 
       // 1. Check if client already has an active session
-      const { data: sessionData } = await client.auth.getSession();
-      const existing = sessionData?.session;
+      let existing = null;
+      try {
+        const { data: sessionData, error: sessionErr } = await client.auth.getSession();
+        if (sessionErr) {
+          console.warn("[SupabaseClient] Stale session on getSession, purging tokens:", sessionErr.message);
+          clearStaleAuthTokens();
+        } else {
+          existing = sessionData?.session;
+        }
+      } catch (e) {
+        clearStaleAuthTokens();
+      }
+
+      if (existing && existing.user) {
+        // If the access token has expired or is expiring within 30s, verify/refresh safely
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (existing.expires_at && existing.expires_at <= (nowSec + 30)) {
+          try {
+            const { data: refreshed, error: refreshErr } = await client.auth.refreshSession();
+            if (refreshErr || !refreshed?.session) {
+              console.warn("[SupabaseClient] Refresh failed, purging stale token:", refreshErr?.message);
+              clearStaleAuthTokens();
+              existing = null;
+            } else {
+              existing = refreshed.session;
+            }
+          } catch (_) {
+            clearStaleAuthTokens();
+            existing = null;
+          }
+        }
+      }
+
       if (existing && existing.user) {
         // If this is for read-only access (queries, metrics, getAll), ANY authenticated session is sufficient
         if (!forWrite) {
@@ -191,13 +262,15 @@ const SupabaseClient = (function () {
 
   // Re-initialize when credentials change
   window.addEventListener('supabaseConfigChanged', () => {
-    init();
+    init(true);
   });
 
   return {
     init,
     getClient,
     isReady,
+    clearStaleAuthTokens,
+    reset: () => { clientInstance = null; connectionState = 'idle'; lastError = null; },
     ensureAuthenticatedSession,
     SUPABASE_OFFICE_CREDENTIALS,
     testConnection,

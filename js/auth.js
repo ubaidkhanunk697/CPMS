@@ -23,11 +23,23 @@ const AuthService = (function () {
           }
         } else {
           localStorage.removeItem(STORAGE_KEY_SESSION);
+          if (typeof SupabaseClient !== 'undefined' && typeof SupabaseClient.clearStaleAuthTokens === 'function') {
+            SupabaseClient.clearStaleAuthTokens();
+          }
           currentSession = null;
         }
+      } else {
+        // No session stored -> user is on login screen. Ensure stale tokens don't trigger background 400s
+        if (typeof SupabaseClient !== 'undefined' && typeof SupabaseClient.clearStaleAuthTokens === 'function') {
+          SupabaseClient.clearStaleAuthTokens();
+        }
+        currentSession = null;
       }
     } catch (e) {
       console.warn("[AuthService] Error reading stored session:", e);
+      if (typeof SupabaseClient !== 'undefined' && typeof SupabaseClient.clearStaleAuthTokens === 'function') {
+        SupabaseClient.clearStaleAuthTokens();
+      }
       currentSession = null;
     }
 
@@ -52,7 +64,19 @@ const AuthService = (function () {
           }
           currentSession = null;
           localStorage.removeItem(STORAGE_KEY_SESSION);
+          if (typeof SupabaseClient !== 'undefined' && typeof SupabaseClient.clearStaleAuthTokens === 'function') {
+            SupabaseClient.clearStaleAuthTokens();
+          }
           notifyAuthStateChange('SIGNED_OUT', null);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          if (currentSession && currentSession.user && currentSession.user.id === session.user?.id) {
+            currentSession = {
+              ...currentSession,
+              ...session,
+              user: currentSession.user
+            };
+            localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession));
+          }
         }
       });
     }
@@ -328,10 +352,14 @@ const AuthService = (function () {
     if (SupabaseClient.isReady()) {
       try {
         const client = SupabaseClient.getClient();
-        await client.auth.signOut();
+        await client.auth.signOut({ scope: 'local' });
       } catch (err) {
         console.warn("[AuthService] Supabase signOut error:", err);
       }
+    }
+
+    if (typeof SupabaseClient !== 'undefined' && typeof SupabaseClient.clearStaleAuthTokens === 'function') {
+      SupabaseClient.clearStaleAuthTokens();
     }
 
     currentSession = null;
